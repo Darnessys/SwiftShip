@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الشحنات | نظام الشحن</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #6c5ce7;
+            --accent-color: #00b894; /* لون التعديل */
+            --header-grad: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+            --bg-color: #f0f2f5;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg-color); margin: 0; padding: 0; }
+        
+        .header {
+            background: var(--header-grad); color: white; padding: 25px 20px;
+            display: flex; align-items: center; border-bottom-left-radius: 30px;
+            border-bottom-right-radius: 30px; box-shadow: 0 4px 12px rgba(108, 92, 231, 0.2);
+        }
+
+        .header a { color: white; text-decoration: none; margin-left: 15px; }
+
+        .container { padding: 20px; max-width: 600px; margin: 0 auto; }
+
+        .card {
+            background: white; padding: 20px; border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-top: -10px;
+            transition: all 0.3s ease;
+        }
+
+        /* وضع التعديل يغير لون حدود الكارت */
+        .card.edit-mode { border: 2px solid var(--accent-color); background: #f7fff9; }
+
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: var(--primary-color); }
+        
+        select, input {
+            width: 100%; padding: 12px; border: 2px solid #eee;
+            border-radius: 10px; box-sizing: border-box; outline: none; font-size: 1rem;
+            transition: border 0.3s;
+        }
+        
+        select:focus, input:focus { border-color: var(--primary-color); }
+
+        .calculation-box {
+            background: #f8f7ff; padding: 15px; border-radius: 15px;
+            text-align: center; border: 1px dashed var(--primary-color); margin: 15px 0;
+        }
+
+        .total-price { font-size: 1.6rem; color: var(--primary-color); font-weight: bold; }
+
+        .btn-submit {
+            background: var(--header-grad); color: white; border: none;
+            width: 100%; padding: 15px; border-radius: 12px;
+            font-size: 1.1rem; font-weight: bold; cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+        
+        .btn-submit:active { transform: scale(0.98); }
+        .btn-submit.edit-btn { background: var(--accent-color); }
+
+        .recent-table {
+            width: 100%; background: white; border-radius: 20px;
+            overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            border-collapse: collapse; margin-top: 20px;
+        }
+
+        .recent-table th { background: #fdfdff; padding: 12px; font-size: 0.8rem; color: #888; text-align: right; }
+        .recent-table td { padding: 12px; border-bottom: 1px solid #f5f5f5; font-size: 0.9rem; }
+        
+        .action-cell { display: flex; align-items: center; justify-content: start; gap: 12px; }
+        .btn-action { border: none; background: none; cursor: pointer; font-size: 1.1rem; padding: 5px; transition: color 0.2s; }
+        .btn-edit { color: var(--accent-color); }
+        .btn-delete { color: #ff7675; }
+        .status-icon { font-size: 1.1rem; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <a href="index.html"><i class="fas fa-arrow-right"></i></a>
+    <h2 style="margin:0; font-size:1.3rem;">تسجيل شحنة جديدة</h2>
+</div>
+
+<div class="container">
+    <div id="mainCard" class="card">
+        <input type="hidden" id="editId" value=""> <!-- حقل مخفي لتخزين ID الشحنة عند التعديل -->
+        
+        <div class="form-group">
+            <label>العميل:</label>
+            <select id="shipCustomer">
+                <option value="">-- اختر العميل --</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>شركة الشحن:</label>
+            <select id="shipCompany" onchange="calculate()">
+                <option value="0">-- اختر الشركة --</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>عدد الطرود:</label>
+            <input type="number" id="pkgCount" value="1" min="1" oninput="calculate()">
+        </div>
+
+        <div class="calculation-box">
+            <div style="color:#888; font-size: 0.8rem;">إجمالي المستحق للشركة</div>
+            <div class="total-price"><span id="totalDisplay">0</span> ج.م</div>
+        </div>
+
+        <button id="saveBtn" class="btn-submit" onclick="saveShipment()">
+            <i class="fas fa-save"></i> <span id="btnText">حفظ الشحنة</span>
+        </button>
+    </div>
+
+    <h3 style="margin: 25px 10px 10px; font-size: 1rem; color: #444;">آخر العمليات المسجلة</h3>
+    <table class="recent-table">
+        <thead>
+            <tr>
+                <th>العميل</th>
+                <th>التفاصيل</th>
+                <th>الإجمالي</th>
+                <th>الإجراء</th>
+            </tr>
+        </thead>
+        <tbody id="recentBody"></tbody>
+    </table>
+</div>
+
+<script>
+    const customers = JSON.parse(localStorage.getItem('customers')) || [];
+    const companies = JSON.parse(localStorage.getItem('companies')) || [];
+    
+    const custSelect = document.getElementById('shipCustomer');
+    const compSelect = document.getElementById('shipCompany');
+    const pkgInput = document.getElementById('pkgCount');
+    const mainCard = document.getElementById('mainCard');
+    const btnText = document.getElementById('btnText');
+    const saveBtn = document.getElementById('saveBtn');
+    const editIdInput = document.getElementById('editId');
+
+    // تعبئة القوائم
+    customers.forEach(c => custSelect.add(new Option(c.name, c.name)));
+    companies.forEach(c => {
+        let opt = new Option(`${c.name} (${c.price}ج)`, c.price);
+        opt.setAttribute('data-name', c.name);
+        compSelect.add(opt);
+    });
+
+    function calculate() {
+        const price = parseFloat(compSelect.value) || 0;
+        const count = parseInt(pkgInput.value) || 0;
+        document.getElementById('totalDisplay').innerText = (price * count);
+    }
+
+    function saveShipment() {
+        const customer = custSelect.value;
+        const companyPrice = compSelect.value;
+        const companyName = compSelect.options[compSelect.selectedIndex].getAttribute('data-name');
+        const count = parseInt(pkgInput.value);
+        const total = document.getElementById('totalDisplay').innerText;
+        const editId = editIdInput.value;
+
+        const now = new Date();
+        const today = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+
+        if(!customer || companyPrice == "0") return alert("برجاء اختيار العميل والشركة أولاً");
+
+        let shipments = JSON.parse(localStorage.getItem('shipments')) || [];
+
+        if(editId) {
+            // حالة تحديث شحنة موجودة (وضع التعديل اليدوي)
+            const idx = shipments.findIndex(s => s.id == editId);
+            if(idx !== -1) {
+                shipments[idx].customer = customer;
+                shipments[idx].companyName = companyName;
+                shipments[idx].count = count;
+                shipments[idx].total = total;
+                alert("تم تحديث الشحنة بنجاح");
+            }
+        } else {
+            // حالة إضافة جديدة أو فحص التكرار
+            const existingIdx = shipments.findIndex(s => 
+                s.customer === customer && 
+                s.companyName === companyName && 
+                s.dateOnly === today && 
+                s.status !== 'paid'
+            );
+
+            if(existingIdx !== -1) {
+                if(confirm(`العميل مسجل اليوم بالفعل. هل تريد فتح بيانات الشحنة لتعديلها؟`)) {
+                    loadForEdit(shipments[existingIdx].id);
+                    return; // نخرج من الدالة لفتح وضع التعديل
+                } else { return; }
+            } else {
+                shipments.push({
+                    id: Date.now(),
+                    customer,
+                    companyName,
+                    count,
+                    total,
+                    status: 'pending',
+                    dateOnly: today,
+                    dateTime: now.toLocaleString()
+                });
+                alert("تم حفظ شحنة جديدة");
+            }
+        }
+
+        localStorage.setItem('shipments', JSON.stringify(shipments));
+        resetForm();
+        renderRecent();
+    }
+
+    // دالة لتحميل البيانات في الفورم للتعديل
+    function loadForEdit(id) {
+        const shipments = JSON.parse(localStorage.getItem('shipments')) || [];
+        const shipment = shipments.find(s => s.id == id);
+        
+        if(shipment) {
+            editIdInput.value = shipment.id;
+            custSelect.value = shipment.customer;
+            
+            // اختيار شركة الشحن بناءً على الاسم
+            for(let i=0; i<compSelect.options.length; i++) {
+                if(compSelect.options[i].getAttribute('data-name') === shipment.companyName) {
+                    compSelect.selectedIndex = i;
+                    break;
+                }
+            }
+            
+            pkgInput.value = shipment.count;
+            calculate();
+            
+            // تغيير شكل الواجهة لوضع التعديل
+            mainCard.classList.add('edit-mode');
+            saveBtn.classList.add('edit-btn');
+            btnText.innerText = "تعديل الشحنة الحالية";
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }
+
+    function resetForm() {
+        editIdInput.value = "";
+        custSelect.selectedIndex = 0;
+        compSelect.selectedIndex = 0;
+        pkgInput.value = 1;
+        document.getElementById('totalDisplay').innerText = "0";
+        mainCard.classList.remove('edit-mode');
+        saveBtn.classList.remove('edit-btn');
+        btnText.innerText = "حفظ الشحنة";
+    }
+
+    function renderRecent() {
+        const shipments = JSON.parse(localStorage.getItem('shipments')) || [];
+        const tbody = document.getElementById('recentBody');
+        const displayData = shipments.slice(-10).reverse();
+
+        tbody.innerHTML = displayData.map(s => `
+            <tr>
+                <td><b>${s.customer}</b></td>
+                <td>${s.count} طرد<br><small>${s.companyName}</small></td>
+                <td style="color:var(--primary-color); font-weight:bold;">${s.total}ج</td>
+                <td>
+                    <div class="action-cell">
+                        ${s.status === 'paid' ? 
+                            '<i class="fas fa-check-circle status-icon" style="color:#2ecc71" title="تم السداد"></i>' : 
+                            '<i class="fas fa-clock status-icon" style="color:#bdc3c7" title="انتظار"></i>'}
+                        
+                        <button class="btn-action btn-edit" onclick="loadForEdit(${s.id})" title="تعديل">
+                            <i class="fas fa-edit"></i>
+                        </button>
+
+                        <button class="btn-action btn-delete" onclick="deleteShipment(${s.id})" title="حذف">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function deleteShipment(id) {
+        if(!confirm("حذف هذه العملية؟")) return;
+        let shipments = JSON.parse(localStorage.getItem('shipments')) || [];
+        shipments = shipments.filter(s => s.id !== id);
+        localStorage.setItem('shipments', JSON.stringify(shipments));
+        renderRecent();
+        if(editIdInput.value == id) resetForm();
+    }
+
+    renderRecent();
+</script>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة العملاء | نظام الشحن</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #6c5ce7; 
+            --header-grad: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+            --bg-color: #f0f2f5;
+            --text-dark: #2d3436;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg-color);
+            margin: 0; padding: 0;
+        }
+
+        .header {
+            background: var(--header-grad);
+            color: white; padding: 25px 20px;
+            display: flex; align-items: center;
+            border-bottom-left-radius: 30px;
+            border-bottom-right-radius: 30px;
+            box-shadow: 0 4px 12px rgba(108, 92, 231, 0.3);
+        }
+
+        .header a { color: white; text-decoration: none; margin-left: 15px; }
+
+        .container { padding: 20px; max-width: 600px; margin: 0 auto; }
+
+        .card {
+            background: white; padding: 25px; border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-top: -10px;
+        }
+
+        .form-group { margin-bottom: 18px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: var(--primary-color); }
+        
+        input {
+            width: 100%; padding: 14px; border: 2px solid #eee;
+            border-radius: 12px; box-sizing: border-box; outline: none;
+        }
+
+        input:focus { border-color: var(--primary-color); }
+
+        .btn-save {
+            background: var(--header-grad); color: white; border: none;
+            width: 100%; padding: 16px; border-radius: 12px;
+            font-size: 1.1rem; font-weight: bold; cursor: pointer;
+        }
+
+        .customer-list {
+            width: 100%; background: white; border-radius: 20px;
+            overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            border-collapse: collapse; margin-top: 10px;
+        }
+
+        .customer-list td { padding: 15px; border-bottom: 1px solid #f5f5f5; }
+
+        .cust-info { display: flex; justify-content: space-between; align-items: center; }
+        .id-badge { 
+            background: #f1f0ff; color: var(--primary-color); 
+            padding: 2px 8px; border-radius: 6px; font-weight: bold; font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <a href="index.html"><i class="fas fa-arrow-right"></i></a>
+        <h2 style="margin:0; font-size:1.3rem;">تسجيل عميل جديد</h2>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="form-group">
+                <label>اسم العميل:</label>
+                <input type="text" id="custName" placeholder="الاسم ثلاثي">
+            </div>
+            <div class="form-group">
+                <label>رقم التليفون:</label>
+                <input type="tel" id="custPhone" placeholder="01xxxxxxxxx">
+            </div>
+            <button class="btn-save" onclick="addCustomer()">حفظ البيانات</button>
+        </div>
+
+        <h3>العملاء المسجلين</h3>
+        <table class="customer-list">
+            <tbody id="customerBody"></tbody>
+        </table>
+    </div>
+
+    <script>
+        function render() {
+            // جلب البيانات مع التأكد أنها مصفوفة
+            const customers = JSON.parse(localStorage.getItem('customers')) || [];
+            const tbody = document.getElementById('customerBody');
+            
+            tbody.innerHTML = customers.map(c => {
+                // التأكد من وجود قيمة للـ ID حتى لو البيانات قديمة
+                const displayId = c.id || 'N/A'; 
+                return `
+                <tr>
+                    <td>
+                        <div class="cust-info">
+                            <div>
+                                <span class="id-badge">ID: #${displayId}</span>
+                                <div style="margin-top:5px;"><b>${c.name}</b></div>
+                                <div style="color:gray; font-size:0.9rem;">${c.phone}</div>
+                            </div>
+                            <button onclick="deleteCustomer(${c.id})" style="color:#ff7675; border:none; background:none; cursor:pointer;">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function addCustomer() {
+            const name = document.getElementById('custName').value;
+            const phone = document.getElementById('custPhone').value;
+            
+            if(!name || !phone) return alert("برجاء إدخال البيانات");
+            
+            let customers = JSON.parse(localStorage.getItem('customers')) || [];
+            
+            // إصلاح منطق الـ ID: نأخذ آخر ID مسجل ونزود 1
+            const lastId = customers.length > 0 ? Math.max(...customers.map(c => parseInt(c.id) || 0)) : 0;
+            const newId = lastId + 1;
+
+            // التأكد من تعريف كل الخانات بوضوح عند الحفظ
+            const newEntry = {
+                id: newId,
+                name: name,
+                phone: phone
+            };
+
+            customers.push(newEntry);
+            localStorage.setItem('customers', JSON.stringify(customers));
+            
+            document.getElementById('custName').value = "";
+            document.getElementById('custPhone').value = "";
+            render();
+        }
+
+        function deleteCustomer(id) {
+            if(!confirm("حذف العميل؟")) return;
+            let customers = JSON.parse(localStorage.getItem('customers')) || [];
+            customers = customers.filter(c => c.id !== id);
+            localStorage.setItem('customers', JSON.stringify(customers));
+            render();
+        }
+
+        render();
+    </script>
+</body>
+</html>

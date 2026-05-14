@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تقرير حساب العميل</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --primary: #6c5ce7; --secondary: #a29bfe; --bg: #f8f9fa; --text: #2d3436; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); margin: 0; padding: 0; color: var(--text); }
+        
+        .header { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; padding: 20px; display: flex; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header a { color: white; text-decoration: none; margin-left: 15px; font-size: 1.2rem; }
+        
+        .container { padding: 20px; max-width: 900px; margin: 0 auto; }
+        
+        .filter-card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px; }
+        label { font-weight: bold; display: block; margin-bottom: 10px; color: var(--primary); }
+        
+        select { 
+            width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 10px; 
+            font-size: 1rem; outline: none; transition: 0.3s;
+        }
+        select:focus { border-color: var(--primary); }
+
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .stat-box { background: white; padding: 15px; border-radius: 12px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-top: 4px solid var(--primary); }
+        .stat-box span { display: block; font-size: 0.8rem; color: #636e72; }
+        .stat-box b { font-size: 1.2rem; color: var(--primary); }
+
+        .report-table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .report-table th, .report-table td { padding: 15px; text-align: right; border-bottom: 1px solid #f1f1f1; }
+        .report-table th { background: #fdfdfd; color: #b2bec3; font-size: 0.8rem; text-transform: uppercase; }
+        
+        .status-pill { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; }
+        .status-paid { background: #e3fcef; color: #00b894; }
+        .status-pending { background: #fff4e5; color: #fdcb6e; }
+
+        .empty-state { text-align: center; padding: 50px; color: #b2bec3; }
+        
+        @media print {
+            .header, .filter-card { display: none; }
+            body { background: white; }
+            .container { width: 100%; max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <a href="index.html"><i class="fas fa-arrow-right"></i></a>
+    <h2 style="margin:0; font-size:1.2rem;">تقرير عمليات العميل</h2>
+</div>
+
+<div class="container">
+    <div class="filter-card">
+        <label>اختر العميل لعرض تقريره:</label>
+        <select id="customerFilter" onchange="generateReport()">
+            <option value="">-- ابحث عن عميل --</option>
+        </select>
+    </div>
+
+    <div id="reportArea" style="display: none;">
+        <div class="stats-grid">
+            <div class="stat-box">
+                <span>إجمالي الطرود</span>
+                <b id="statPkgs">0</b>
+            </div>
+            <div class="stat-box">
+                <span>إجمالي المدفوعات</span>
+                <b id="statMoney">0</b> ج.م
+            </div>
+        </div>
+
+        <table class="report-table">
+            <thead>
+                <tr>
+                    <th>التاريخ</th>
+                    <th>شركة الشحن</th>
+                    <th>العدد</th>
+                    <th>التكلفة</th>
+                    <th>الحالة</th>
+                </tr>
+            </thead>
+            <tbody id="reportItems"></tbody>
+        </table>
+
+        <button onclick="window.print()" style="margin-top: 20px; width: 100%; padding: 12px; background: #2d3436; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold;">
+            <i class="fas fa-print"></i> طباعة كشف الحساب
+        </button>
+    </div>
+
+    <div id="noData" class="empty-state">
+        <i class="fas fa-user-search" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.2;"></i>
+        <p>قم باختيار اسم العميل لمشاهدة سجل شحناته</p>
+    </div>
+</div>
+
+<script>
+    function loadCustomers() {
+        const customers = JSON.parse(localStorage.getItem('customers')) || [];
+        const select = document.getElementById('customerFilter');
+        customers.forEach(c => {
+            select.add(new Option(c.name, c.name));
+        });
+    }
+
+    function generateReport() {
+        const customerName = document.getElementById('customerFilter').value;
+        const shipments = JSON.parse(localStorage.getItem('shipments')) || [];
+        const reportArea = document.getElementById('reportArea');
+        const noData = document.getElementById('noData');
+        const tbody = document.getElementById('reportItems');
+
+        if (!customerName) {
+            reportArea.style.display = 'none';
+            noData.style.display = 'block';
+            return;
+        }
+
+        const customerShipments = shipments.filter(s => s.customer === customerName);
+
+        let totalPkgs = 0;
+        let totalMoney = 0;
+        let rows = "";
+
+        customerShipments.forEach(s => {
+            totalPkgs += parseInt(s.count);
+            totalMoney += parseFloat(s.total);
+            
+            const statusClass = s.status === 'paid' ? 'status-paid' : 'status-pending';
+            const statusText = s.status === 'paid' ? 'مسدد' : 'انتظار';
+
+            rows += `
+                <tr>
+                    <td><small>${s.dateOnly}</small></td>
+                    <td><b>${s.companyName}</b></td>
+                    <td>${s.count}</td>
+                    <td>${s.total} ج</td>
+                    <td><span class="status-pill ${statusClass}">${statusText}</span></td>
+                </tr>
+            `;
+        });
+
+        if (customerShipments.length > 0) {
+            tbody.innerHTML = rows;
+            document.getElementById('statPkgs').innerText = totalPkgs;
+            document.getElementById('statMoney').innerText = totalMoney;
+            reportArea.style.display = 'block';
+            noData.style.display = 'none';
+        } else {
+            reportArea.style.display = 'none';
+            noData.innerHTML = `<p>لا توجد عمليات مسجلة لهذا العميل حتى الآن.</p>`;
+            noData.style.display = 'block';
+        }
+    }
+
+    loadCustomers();
+</script>
+
+</body>
+</html>

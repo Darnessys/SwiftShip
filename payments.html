@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سند صرف مالي</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-grad: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+            --text-color: #2d3436;
+            --bg: #f9f9f9;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; }
+
+        header {
+            background: var(--primary-grad);
+            color: white; padding: 30px 20px;
+            text-align: center; border-bottom-left-radius: 30px;
+            border-bottom-right-radius: 30px; box-shadow: 0 4px 15px rgba(0,184,148,0.3);
+        }
+
+        .container { padding: 20px; max-width: 500px; margin: -20px auto 0; }
+
+        .card {
+            background: white; padding: 25px; border-radius: 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+        }
+
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #636e72; }
+        
+        select, input {
+            width: 100%; padding: 15px; border: 1px solid #dfe6e9;
+            border-radius: 12px; font-size: 1rem; box-sizing: border-box;
+            background: #fdfdfd; outline: none;
+        }
+
+        input:focus { border-color: #00b894; background: white; }
+
+        .btn-pay {
+            background: var(--primary-grad); color: white; border: none;
+            width: 100%; padding: 18px; border-radius: 15px;
+            font-size: 1.2rem; font-weight: bold; cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,184,148,0.4);
+        }
+
+        .btn-pay:active { transform: scale(0.96); }
+
+        .history-title { margin: 25px 10px 10px; font-size: 1rem; color: var(--text-color); }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="index.html" style="color:white; float:right; text-decoration:none;"><i class="fas fa-arrow-right"></i></a>
+    <h2>سند صرف نقدي</h2>
+    <p>تسجيل دفعة مالية لشركة شحن</p>
+</header>
+
+<div class="container">
+    <div class="card">
+        <div class="form-group">
+            <label>اسم الشركة:</label>
+            <select id="payCompany">
+                <option value="">-- اختر الشركة --</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>المبلغ المدفوع (ج.م):</label>
+            <input type="number" id="payAmount" placeholder="0.00">
+        </div>
+
+        <div class="form-group">
+            <label>ملاحظات:</label>
+            <input type="text" id="payNote" placeholder="مثلاً: دفعة عن شهر مايو">
+        </div>
+
+        <button class="btn-pay" onclick="savePayment()">
+            <i class="fas fa-money-bill-wave"></i> تأكيد صرف المبلغ
+        </button>
+        
+    </div>
+</div>
+
+<script>
+    // 1. تحميل الشركات
+    function loadCompanies() {
+        const companies = JSON.parse(localStorage.getItem('companies')) || [];
+        const select = document.getElementById('payCompany');
+        companies.forEach(c => {
+            let opt = document.createElement('option');
+            opt.value = c.name;
+            opt.text = c.name;
+            select.add(opt);
+        });
+    }
+
+    // 2. حفظ السند
+    function savePayment() {
+        const company = document.getElementById('payCompany').value;
+        const amount = document.getElementById('payAmount').value;
+        const note = document.getElementById('payNote').value;
+
+        if(!company || !amount) return alert("يرجى اختيار الشركة وتحديد المبلغ");
+
+        const payment = {
+            id: Date.now(), // كود فريد للسند
+            companyName: company,
+            amount: parseFloat(amount),
+            note: note,
+            date: new Date().toLocaleDateString()
+        };
+
+        let payments = JSON.parse(localStorage.getItem('payments')) || [];
+        payments.push(payment);
+        localStorage.setItem('payments', JSON.stringify(payments));
+
+        alert("تم تسجيل سند الصرف بنجاح");
+        window.location.href = 'index.html';
+    }
+
+    loadCompanies();
+</script>
+
+</body>
+</html>

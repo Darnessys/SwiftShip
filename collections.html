@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>دفتر التحصيلات الرقمي</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --primary: #00b894; --edit-color: #0984e3; --bg: #f0f2f5; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 0; }
+        .header { background: var(--primary); color: white; padding: 20px; text-align: center; border-bottom: 4px solid rgba(0,0,0,0.1); }
+        .container { padding: 20px; max-width: 800px; margin: 0 auto; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        input, select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        
+        #mainBtn { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 17px; transition: 0.3s; }
+        
+        table { width: 100%; background: white; border-collapse: collapse; border-radius: 10px; overflow: hidden; margin-top: 10px; }
+        th, td { padding: 15px; text-align: right; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; color: #636e72; }
+        .total-info { display: flex; justify-content: space-between; font-weight: bold; background: #fff; padding: 15px; border-radius: 10px; margin-top: 10px; border-right: 5px solid var(--primary); font-size: 1.1rem; }
+        
+        .actions i { font-size: 1.1rem; cursor: pointer; transition: 0.2s; }
+        .btn-edit { color: var(--edit-color); margin-left: 15px; }
+        .btn-delete { color: #e74c3c; }
+        .actions i:active { transform: scale(0.8); }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h2><i class="fas fa-hand-holding-usd"></i> دفتر تحصيلات العملاء</h2>
+</div>
+
+<div class="container">
+    <!-- فورم تسجيل وتعديل التحصيل -->
+    <div class="card">
+        <label id="formLabel">تسجيل مبلغ محصل جديد:</label>
+        <!-- تعديل: تحويل الـ select إلى input مع datalist للبحث -->
+        <input list="customersList" id="collectCustomer" placeholder="ابحث عن اسم العميل...">
+        <datalist id="customersList"></datalist>
+        
+        <input type="number" id="collectAmount" placeholder="المبلغ المحصل (ج.م)">
+        <input type="date" id="collectDate">
+        <button id="mainBtn" onclick="saveCollection()">تسجيل في الدفتر</button>
+    </div>
+
+    <!-- فلتر المراجعة -->
+    <div class="card" style="padding: 15px;">
+        <label><i class="fas fa-filter"></i> عرض تحصيلات العميل:</label>
+        <!-- تعديل: تحويل فلتر الـ select إلى بحث سريع -->
+        <input list="customersList" id="filterCustomer" oninput="loadCollections()" placeholder="اكتب اسم العميل للمراجعة أو اتركها فارغة للكل">
+        
+        <div class="total-info">
+            <span>إجمالي المحصل:</span>
+            <span id="totalCollected">0 ج.م</span>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>التاريخ</th>
+                <th>اسم العميل</th>
+                <th>المبلغ</th>
+                <th>إجراءات</th>
+            </tr>
+        </thead>
+        <tbody id="collectionsTable"></tbody>
+    </table>
+</div>
+
+<script>
+    let editModeId = null;
+
+    function init() {
+        const customers = JSON.parse(localStorage.getItem('customers')) || [];
+        const dl = document.getElementById('customersList');
+        document.getElementById('collectDate').valueAsDate = new Date();
+
+        // ملء قائمة البحث بالأسماء
+        dl.innerHTML = "";
+        customers.forEach(c => {
+            let option = document.createElement('option');
+            option.value = c.name;
+            dl.appendChild(option);
+        });
+        
+        loadCollections();
+    }
+
+    function saveCollection() {
+        const customer = document.getElementById('collectCustomer').value;
+        const amount = document.getElementById('collectAmount').value;
+        const date = document.getElementById('collectDate').value;
+        const btn = document.getElementById('mainBtn');
+
+        if(!customer) return alert("الرجاء اختيار أو كتابة اسم العميل");
+        if(!amount || amount <= 0) return alert("الرجاء إدخال مبلغ صحيح");
+
+        let collections = JSON.parse(localStorage.getItem('collections')) || [];
+
+        if (editModeId) {
+            const index = collections.findIndex(c => c.id === editModeId);
+            if (index !== -1) {
+                collections[index] = { ...collections[index], customer, amount: parseFloat(amount), date };
+                alert("تم تحديث البيانات بنجاح");
+            }
+            editModeId = null;
+            btn.innerText = "تسجيل في الدفتر";
+            btn.style.background = "var(--primary)";
+            document.getElementById('formLabel').innerText = "تسجيل مبلغ محصل جديد:";
+        } else {
+            collections.push({
+                id: Date.now(),
+                customer: customer,
+                amount: parseFloat(amount),
+                date: date
+            });
+            alert("تم التسجيل بنجاح");
+        }
+
+        localStorage.setItem('collections', JSON.stringify(collections));
+        document.getElementById('collectAmount').value = "";
+        document.getElementById('collectCustomer').value = ""; // تفريغ خانة العميل بعد الحفظ
+        loadCollections();
+    }
+
+    function loadCollections() {
+        const collections = JSON.parse(localStorage.getItem('collections')) || [];
+        const filter = document.getElementById('filterCustomer').value;
+        const tbody = document.getElementById('collectionsTable');
+        let total = 0;
+        tbody.innerHTML = "";
+
+        // تعديل منطق الفلتر ليدعم البحث الجزئي أو الفارغ
+        const filteredData = filter === "" ? collections : collections.filter(c => c.customer.includes(filter));
+
+        [...filteredData].reverse().forEach(c => {
+            total += c.amount;
+            tbody.innerHTML += `
+                <tr>
+                    <td>${c.date}</td>
+                    <td>${c.customer}</td>
+                    <td style="font-weight:bold;">${c.amount} ج.م</td>
+                    <td class="actions">
+                        <i class="fas fa-edit btn-edit" title="تعديل" onclick="startEdit(${c.id})"></i>
+                        <i class="fas fa-trash btn-delete" title="حذف" onclick="deleteCollection(${c.id})"></i>
+                    </td>
+                </tr>
+            `;
+        });
+        document.getElementById('totalCollected').innerText = total + " ج.م";
+    }
+
+    function startEdit(id) {
+        const collections = JSON.parse(localStorage.getItem('collections')) || [];
+        const item = collections.find(c => c.id === id);
+
+        if (item) {
+            editModeId = id;
+            document.getElementById('collectCustomer').value = item.customer;
+            document.getElementById('collectAmount').value = item.amount;
+            document.getElementById('collectDate').value = item.date;
+
+            const btn = document.getElementById('mainBtn');
+            btn.innerText = "تحديث دفعة العميل";
+            btn.style.background = "var(--edit-color)";
+            document.getElementById('formLabel').innerText = "وضع التعديل الحالي:";
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }
+
+    function deleteCollection(id) {
+        if(confirm("هل أنت متأكد من حذف هذا المبلغ من الدفتر؟")) {
+            let collections = JSON.parse(localStorage.getItem('collections')) || [];
+            collections = collections.filter(c => c.id !== id);
+            localStorage.setItem('collections', JSON.stringify(collections));
+            loadCollections();
+        }
+    }
+
+    init();
+</script>
+</body>
+</html>

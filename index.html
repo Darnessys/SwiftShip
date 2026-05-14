@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم | نظام الشحن</title>
+    <!-- استدعاء أيقونات FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            /* باليتة ألوان "راكزة" وفخمة */
+            --main-bg: #f0f2f5;
+            --header-grad: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            --card-shadow: 0 10px 20px rgba(0,0,0,0.08);
+            --text-main: #2c3e50;
+            
+            /* ألوان الأقسام بصيغة غنية */
+            --cust-color: #6c5ce7;   /* بنفسجي عميق */
+            --comp-color: #e67e22;   /* برتقالي ذهبي */
+            --ship-color: #0984e3;   /* أزرق ملكي */
+            --rep-color: #00b894;    /* أخضر زمردي */
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--main-bg);
+            margin: 0;
+            padding: 0;
+            color: var(--text-main);
+            /* لمنع التمرير الأفقي */
+            overflow-x: hidden;
+        }
+
+        header {
+            background: var(--header-grad);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            border-bottom-left-radius: 35px;
+            border-bottom-right-radius: 35px;
+            box-shadow: 0 5px 15px rgba(30, 60, 114, 0.3);
+        }
+
+        header h2 {
+            margin: 0;
+            font-size: 1.8rem;
+            letter-spacing: 1px;
+        }
+
+        header p {
+            margin-top: 10px;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+
+        .container {
+            padding: 25px 15px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            max-width: 600px;
+            margin: -30px auto 0 auto; /* لرفع الكروت قليلاً فوق الهيدر */
+        }
+
+        .menu-card {
+            background: white;
+            padding: 30px 10px;
+            border-radius: 24px;
+            text-align: center;
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        /* تأثير الحركة عند الضغط لملمس الموبايل */
+        .menu-card:active {
+            transform: scale(0.92);
+            box-shadow: 0 5px 10px rgba(0,0,0,0.1);
+            background-color: #fcfcfc;
+        }
+
+        .menu-card i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            transition: 0.3s;
+        }
+
+        .menu-card span {
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--text-main);
+        }
+
+        /* تخصيص ألوان الأيقونات بتأثير توهج خفيف */
+        .card-customers i { color: var(--cust-color); text-shadow: 0 4px 10px rgba(108, 92, 231, 0.2); }
+        .card-companies i { color: var(--comp-color); text-shadow: 0 4px 10px rgba(230, 126, 34, 0.2); }
+        .card-shipment i { color: var(--ship-color); text-shadow: 0 4px 10px rgba(9, 132, 227, 0.2); }
+        .card-reports i { color: var(--rep-color); text-shadow: 0 4px 10px rgba(0, 184, 148, 0.2); }
+
+        .footer-info {
+            text-align: center;
+            margin-top: 40px;
+            color: #95a5a6;
+            font-size: 0.85rem;
+            padding-bottom: 20px;
+        }
+
+        /* تحسين ملمس اللمس في أجهزة الموبايل */
+        * { -webkit-tap-highlight-color: transparent; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h2>نظام الإدارة الذكي</h2>
+    <p>مرحباً بك.. إليك ملخص العمليات</p>
+</header>
+
+<!-- ... (نفس الـ CSS اللي عندك بدون تغيير) ... -->
+
+<div class="container">
+    <!-- قسم العملاء -->
+    <a href="customers.html" class="menu-card card-customers">
+        <i class="fas fa-user-friends"></i>
+        <span>إدارة العملاء</span>
+    </a>
+    
+    <!-- قسم شركات الشحن -->
+    <a href="companies.html" class="menu-card card-companies">
+        <i class="fas fa-truck"></i>
+        <span>شركات الشحن</span>
+    </a>   
+    
+    <!-- قسم تسجيل شحنة -->
+    <a href="shipment.html" class="menu-card card-shipment">
+        <i class="fas fa-box-open"></i>
+        <span>تسجيل شحنة</span>
+    </a>
+
+    <!-- قسم كشف حساب الشركات -->
+    <a href="reports.html" class="menu-card card-reports">
+        <i class="fas fa-file-invoice-dollar"></i>
+        <span>حسابات الشركات</span>
+    </a>
+
+    <!-- القسم الجديد: كشف حساب العملاء -->
+    <!-- أضفنا هذا الكارت ليكون السيستم متكامل -->
+    <a href="customer-report.html" class="menu-card" style="border-top: 4px solid #6c5ce7;">
+        <i class="fas fa-user-check" style="color: #6c5ce7;"></i>
+        <span>حسابات العملاء</span>
+    </a>
+
+    <!-- زر دفتر التحصيلات - لون أخضر (لون الخزنة) -->
+    <a href="collections.html" class="menu-card" style="border-top: 4px solid #00b894;">
+        <i class="fas fa-hand-holding-usd" style="color: #00b894;"></i>
+        <span>تحصيلات العملاء</span>
+    </a>
+</div>
+
+<!-- ... (باقي الفوتر) ... -->
+
+<div class="footer-info">
+    <i class="fas fa-shield-alt"></i> نظام إدارة الشحن &copy; 2026
+</div>
+
+</body>
+</html>
