@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تقرير حساب العميل</title>
+    <title>تقرير حساب العميل | SwiftShip</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root { --primary: #6c5ce7; --secondary: #a29bfe; --bg: #f8f9fa; --text: #2d3436; }
@@ -39,9 +43,10 @@
         .empty-state { text-align: center; padding: 50px; color: #b2bec3; }
         
         @media print {
-            .header, .filter-card { display: none; }
+            .header, .filter-card, button { display: none !important; }
             body { background: white; }
-            .container { width: 100%; max-width: 100%; }
+            .container { width: 100%; max-width: 100%; padding: 0; }
+            .stat-box { border: 1px solid #eee; }
         }
     </style>
 </head>
@@ -49,14 +54,14 @@
 
 <div class="header">
     <a href="index.html"><i class="fas fa-arrow-right"></i></a>
-    <h2 style="margin:0; font-size:1.2rem;">تقرير عمليات العميل</h2>
+    <h2 style="margin:0; font-size:1.2rem;">تقرير عمليات العميل 📊</h2>
 </div>
 
 <div class="container">
     <div class="filter-card">
         <label>اختر العميل لعرض تقريره:</label>
         <select id="customerFilter" onchange="generateReport()">
-            <option value="">-- ابحث عن عميل --</option>
+            <option value="">-- تحميل العملاء... --</option>
         </select>
     </div>
 
@@ -67,7 +72,7 @@
                 <b id="statPkgs">0</b>
             </div>
             <div class="stat-box">
-                <span>إجمالي المدفوعات</span>
+                <span>إجمالي التكلفة</span>
                 <b id="statMoney">0</b> ج.م
             </div>
         </div>
@@ -85,7 +90,7 @@
             <tbody id="reportItems"></tbody>
         </table>
 
-        <button onclick="window.print()" style="margin-top: 20px; width: 100%; padding: 12px; background: #2d3436; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold;">
+        <button onclick="window.print()" style="margin-top: 20px; width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 1rem;">
             <i class="fas fa-print"></i> طباعة كشف الحساب
         </button>
     </div>
@@ -97,17 +102,39 @@
 </div>
 
 <script>
+    // تكوين Firebase
+    const firebaseConfig = {
+        apiKey: "AIzaSyAzjuBkBAKS5Y_gU7qmwwaMh1Ay9me1uds",
+        authDomain: "swiftship-c829c.firebaseapp.com",
+        projectId: "swiftship-c829c",
+        databaseURL: "https://swiftship-c829c-default-rtdb.firebaseio.com/",
+        storageBucket: "swiftship-c829c.firebasestorage.app",
+        messagingSenderId: "410866251849",
+        appId: "1:410866251849:web:4c606d59d83c2c2756a798"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let allShipments = {};
+
+    // 1. تحميل العملاء في القائمة
     function loadCustomers() {
-        const customers = JSON.parse(localStorage.getItem('customers')) || [];
-        const select = document.getElementById('customerFilter');
-        customers.forEach(c => {
-            select.add(new Option(c.name, c.name));
+        db.ref('customers').on('value', snap => {
+            const select = document.getElementById('customerFilter');
+            select.innerHTML = '<option value="">-- ابحث عن عميل --</option>';
+            const data = snap.val();
+            if(data) {
+                Object.values(data).forEach(c => {
+                    select.add(new Option(c.name, c.name));
+                });
+            }
         });
     }
 
+    // 2. جلب الشحنات وتجهيز التقرير
     function generateReport() {
         const customerName = document.getElementById('customerFilter').value;
-        const shipments = JSON.parse(localStorage.getItem('shipments')) || [];
         const reportArea = document.getElementById('reportArea');
         const noData = document.getElementById('noData');
         const tbody = document.getElementById('reportItems');
@@ -118,41 +145,59 @@
             return;
         }
 
-        const customerShipments = shipments.filter(s => s.customer === customerName);
+        // استدعاء البيانات من السيرفر وفلترتها بالعميل المختار
+        db.ref('shipments').once('value', snap => {
+            const data = snap.val();
+            if(!data) {
+                showEmpty("لا توجد عمليات مسجلة نهائياً.");
+                return;
+            }
 
-        let totalPkgs = 0;
-        let totalMoney = 0;
-        let rows = "";
+            const shipmentsArr = Object.values(data).filter(s => s.customer === customerName);
 
-        customerShipments.forEach(s => {
-            totalPkgs += parseInt(s.count);
-            totalMoney += parseFloat(s.total);
-            
-            const statusClass = s.status === 'paid' ? 'status-paid' : 'status-pending';
-            const statusText = s.status === 'paid' ? 'مسدد' : 'انتظار';
+            if (shipmentsArr.length === 0) {
+                showEmpty("لا توجد عمليات مسجلة لهذا العميل.");
+                return;
+            }
 
-            rows += `
-                <tr>
-                    <td><small>${s.dateOnly}</small></td>
-                    <td><b>${s.companyName}</b></td>
-                    <td>${s.count}</td>
-                    <td>${s.total} ج</td>
-                    <td><span class="status-pill ${statusClass}">${statusText}</span></td>
-                </tr>
-            `;
-        });
+            let totalPkgs = 0;
+            let totalMoney = 0;
+            let rows = "";
 
-        if (customerShipments.length > 0) {
+            // ترتيب الشحنات من الأحدث للأقدم
+            shipmentsArr.reverse().forEach(s => {
+                totalPkgs += parseInt(s.count || 0);
+                totalMoney += parseFloat(s.total || 0);
+                
+                const isPaid = s.status === 'paid';
+                const statusClass = isPaid ? 'status-paid' : 'status-pending';
+                const statusText = isPaid ? 'مسدد' : 'انتظار';
+
+                rows += `
+                    <tr>
+                        <td><small>${s.dateOnly || '---'}</small></td>
+                        <td><b>${s.companyName || 'غير محدد'}</b></td>
+                        <td>${s.count || 0}</td>
+                        <td>${s.total || 0} ج</td>
+                        <td><span class="status-pill ${statusClass}">${statusText}</span></td>
+                    </tr>
+                `;
+            });
+
             tbody.innerHTML = rows;
             document.getElementById('statPkgs').innerText = totalPkgs;
             document.getElementById('statMoney').innerText = totalMoney;
+            
             reportArea.style.display = 'block';
             noData.style.display = 'none';
-        } else {
-            reportArea.style.display = 'none';
-            noData.innerHTML = `<p>لا توجد عمليات مسجلة لهذا العميل حتى الآن.</p>`;
-            noData.style.display = 'block';
-        }
+        });
+    }
+
+    function showEmpty(msg) {
+        document.getElementById('reportArea').style.display = 'none';
+        const noData = document.getElementById('noData');
+        noData.innerHTML = `<p>${msg}</p>`;
+        noData.style.display = 'block';
     }
 
     loadCustomers();
