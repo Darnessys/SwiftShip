@@ -3,67 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>دفتر التحصيلات الرقمي</title>
+    <title>دفتر تحصيلات SwiftShip السحابي</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --primary: #00b894; --edit-color: #0984e3; --bg: #f0f2f5; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 0; }
-        .header { background: var(--primary); color: white; padding: 20px; text-align: center; border-bottom: 4px solid rgba(0,0,0,0.1); }
-        .container { padding: 20px; max-width: 800px; margin: 0 auto; }
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        :root { --primary: #00b894; --edit-color: #0984e3; --bg: #f0f2f5; --warning: #e67e22; --danger: #d63031; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 0; padding-bottom: 40px; }
+        .header { background: var(--primary); color: white; padding: 20px; text-align: center; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .container { padding: 15px; max-width: 800px; margin: 0 auto; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; border-top: 4px solid var(--primary); }
         input, select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
         
         #mainBtn { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 17px; transition: 0.3s; }
+        .reset-btn { width: 100%; padding: 10px; background: var(--warning); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; font-size: 14px; }
         
-        table { width: 100%; background: white; border-collapse: collapse; border-radius: 10px; overflow: hidden; margin-top: 10px; }
-        th, td { padding: 15px; text-align: right; border-bottom: 1px solid #eee; }
+        table { width: 100%; background: white; border-collapse: collapse; border-radius: 10px; overflow: hidden; margin-top: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        th, td { padding: 12px; text-align: right; border-bottom: 1px solid #eee; font-size: 14px; }
         th { background: #f8f9fa; color: #636e72; }
+        
         .total-info { display: flex; justify-content: space-between; font-weight: bold; background: #fff; padding: 15px; border-radius: 10px; margin-top: 10px; border-right: 5px solid var(--primary); font-size: 1.1rem; }
         
+        .pending-list { list-style: none; padding: 0; margin-top: 10px; max-height: 200px; overflow-y: auto; }
+        .pending-item { background: #fff5f5; border-right: 4px solid var(--danger); padding: 10px; margin-bottom: 5px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; }
+        .pending-count { background: var(--danger); color: white; padding: 2px 10px; border-radius: 20px; font-size: 14px; }
+
         .actions i { font-size: 1.1rem; cursor: pointer; transition: 0.2s; }
         .btn-edit { color: var(--edit-color); margin-left: 15px; }
         .btn-delete { color: #e74c3c; }
-        .actions i:active { transform: scale(0.8); }
+        
+        /* تحسين للموبايل */
+        @media (max-width: 600px) {
+            th, td { padding: 8px; font-size: 13px; }
+        }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h2><i class="fas fa-hand-holding-usd"></i> دفتر تحصيلات العملاء</h2>
+    <h2><i class="fas fa-hand-holding-usd"></i> تحصيلات SwiftShip</h2>
 </div>
 
 <div class="container">
-    <!-- فورم تسجيل وتعديل التحصيل -->
     <div class="card">
         <label id="formLabel">تسجيل مبلغ محصل جديد:</label>
-        <!-- تعديل: تحويل الـ select إلى input مع datalist للبحث -->
-        <input list="customersList" id="collectCustomer" placeholder="ابحث عن اسم العميل...">
+        <input list="customersList" id="collectCustomer" placeholder="ابحث عن اسم العميل (✅ حصل / ❌ لسه)">
         <datalist id="customersList"></datalist>
         
         <input type="number" id="collectAmount" placeholder="المبلغ المحصل (ج.م)">
         <input type="date" id="collectDate">
-        <button id="mainBtn" onclick="saveCollection()">تسجيل في الدفتر</button>
+        <button id="mainBtn" onclick="saveCollection()">حفظ في السحابة</button>
     </div>
 
-    <!-- فلتر المراجعة -->
     <div class="card" style="padding: 15px;">
-        <label><i class="fas fa-filter"></i> عرض تحصيلات العميل:</label>
-        <!-- تعديل: تحويل فلتر الـ select إلى بحث سريع -->
-        <input list="customersList" id="filterCustomer" oninput="loadCollections()" placeholder="اكتب اسم العميل للمراجعة أو اتركها فارغة للكل">
+        <label><i class="fas fa-filter"></i> مراجعة سريعة:</label>
+        <input list="customersList" id="filterCustomer" oninput="renderAll()" placeholder="ابحث لمراجعة عميل معين...">
         
         <div class="total-info">
             <span>إجمالي المحصل:</span>
             <span id="totalCollected">0 ج.م</span>
         </div>
+        
+        <button class="reset-btn" onclick="resetTrip()">
+            <i class="fas fa-sync-alt"></i> إنهاء الدورة وتصفير الدفتر
+        </button>
+    </div>
+
+    <div class="card">
+        <h3 style="color: var(--danger); margin-top: 0;">
+            <i class="fas fa-user-clock"></i> متبقي لم يدفع <span id="pendingCount" class="pending-count">0</span>
+        </h3>
+        <div id="pendingContainer" class="pending-list"></div>
     </div>
 
     <table>
         <thead>
             <tr>
                 <th>التاريخ</th>
-                <th>اسم العميل</th>
+                <th>العميل</th>
                 <th>المبلغ</th>
-                <th>إجراءات</th>
+                <th>إجراء</th>
             </tr>
         </thead>
         <tbody id="collectionsTable"></tbody>
@@ -71,81 +92,88 @@
 </div>
 
 <script>
+    // 1. إعدادات Firebase الخاصة بك
+    const firebaseConfig = {
+        apiKey: "AIzaSyAzjuBkBAKS5Y_gU7qmwwaMh1Ay9me1uds",
+        authDomain: "swiftship-c829c.firebaseapp.com",
+        projectId: "swiftship-c829c",
+        databaseURL: "https://swiftship-c829c-default-rtdb.firebaseio.com/",
+        storageBucket: "swiftship-c829c.firebasestorage.app",
+        messagingSenderId: "410866251849",
+        appId: "1:410866251849:web:4c606d59d83c2c2756a798"
+    };
+
+    // 2. تهيئة الاتصال
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let allCustomers = [];
+    let allCollections = [];
     let editModeId = null;
 
+    // 3. دالة التشغيل وسحب البيانات لحظياً
     function init() {
-        const customers = JSON.parse(localStorage.getItem('customers')) || [];
-        const dl = document.getElementById('customersList');
         document.getElementById('collectDate').valueAsDate = new Date();
 
-        // ملء قائمة البحث بالأسماء
+        // سحب العملاء (اللي رفعناهم من أكسس)
+        db.ref('customers').on('value', (snapshot) => {
+            allCustomers = [];
+            snapshot.forEach(child => { allCustomers.push(child.val()); });
+            renderAll();
+        });
+
+        // سحب التحصيلات أونلاين
+        db.ref('collections').on('value', (snapshot) => {
+            allCollections = [];
+            snapshot.forEach(child => {
+                allCollections.push({ id: child.key, ...child.val() });
+            });
+            renderAll();
+        });
+    }
+
+    // 4. دالة الرسم الشاملة (تحديث الواجهة)
+    function renderAll() {
+        const dl = document.getElementById('customersList');
+        const collectedNames = allCollections.map(c => c.customer);
+        const filterText = document.getElementById('filterCustomer').value.replace(' ✅', '').replace(' ❌', '').trim();
+
+        // تحديث الداتا ليست ✅/❌
         dl.innerHTML = "";
-        customers.forEach(c => {
+        allCustomers.forEach(c => {
             let option = document.createElement('option');
-            option.value = c.name;
+            option.value = collectedNames.includes(c.name) ? c.name + " ✅" : c.name + " ❌";
             dl.appendChild(option);
         });
+
+        // تحديث قائمة المتبقيين
+        const pendingContainer = document.getElementById('pendingContainer');
+        const pendingCount = document.getElementById('pendingCount');
+        const pendingList = allCustomers.filter(c => !collectedNames.includes(c.name));
         
-        loadCollections();
-    }
+        pendingCount.innerText = pendingList.length;
+        pendingContainer.innerHTML = pendingList.length === 0 ? "<p style='color:green'>✅ تم تحصيل الكل!</p>" : "";
+        pendingList.forEach(c => {
+            pendingContainer.innerHTML += `<div class="pending-item"><span>${c.name}</span><small>(لم يدفع)</small></div>`;
+        });
 
-    function saveCollection() {
-        const customer = document.getElementById('collectCustomer').value;
-        const amount = document.getElementById('collectAmount').value;
-        const date = document.getElementById('collectDate').value;
-        const btn = document.getElementById('mainBtn');
-
-        if(!customer) return alert("الرجاء اختيار أو كتابة اسم العميل");
-        if(!amount || amount <= 0) return alert("الرجاء إدخال مبلغ صحيح");
-
-        let collections = JSON.parse(localStorage.getItem('collections')) || [];
-
-        if (editModeId) {
-            const index = collections.findIndex(c => c.id === editModeId);
-            if (index !== -1) {
-                collections[index] = { ...collections[index], customer, amount: parseFloat(amount), date };
-                alert("تم تحديث البيانات بنجاح");
-            }
-            editModeId = null;
-            btn.innerText = "تسجيل في الدفتر";
-            btn.style.background = "var(--primary)";
-            document.getElementById('formLabel').innerText = "تسجيل مبلغ محصل جديد:";
-        } else {
-            collections.push({
-                id: Date.now(),
-                customer: customer,
-                amount: parseFloat(amount),
-                date: date
-            });
-            alert("تم التسجيل بنجاح");
-        }
-
-        localStorage.setItem('collections', JSON.stringify(collections));
-        document.getElementById('collectAmount').value = "";
-        document.getElementById('collectCustomer').value = ""; // تفريغ خانة العميل بعد الحفظ
-        loadCollections();
-    }
-
-    function loadCollections() {
-        const collections = JSON.parse(localStorage.getItem('collections')) || [];
-        const filter = document.getElementById('filterCustomer').value;
+        // تحديث جدول العمليات والإجمالي
         const tbody = document.getElementById('collectionsTable');
         let total = 0;
         tbody.innerHTML = "";
 
-        // تعديل منطق الفلتر ليدعم البحث الجزئي أو الفارغ
-        const filteredData = filter === "" ? collections : collections.filter(c => c.customer.includes(filter));
+        const displayData = filterText === "" ? allCollections : allCollections.filter(c => c.customer.includes(filterText));
 
-        [...filteredData].reverse().forEach(c => {
-            total += c.amount;
+        [...displayData].reverse().forEach(c => {
+            total += parseFloat(c.amount);
             tbody.innerHTML += `
                 <tr>
-                    <td>${c.date}</td>
+                    <td>${c.date.split('-').slice(1).join('/')}</td>
                     <td>${c.customer}</td>
-                    <td style="font-weight:bold;">${c.amount} ج.م</td>
+                    <td style="font-weight:bold;">${c.amount}</td>
                     <td class="actions">
-                        <i class="fas fa-edit btn-edit" title="تعديل" onclick="startEdit(${c.id})"></i>
-                        <i class="fas fa-trash btn-delete" title="حذف" onclick="deleteCollection(${c.id})"></i>
+                        <i class="fas fa-edit btn-edit" onclick="startEdit('${c.id}')"></i>
+                        <i class="fas fa-trash btn-delete" onclick="deleteCollection('${c.id}')"></i>
                     </td>
                 </tr>
             `;
@@ -153,34 +181,59 @@
         document.getElementById('totalCollected').innerText = total + " ج.م";
     }
 
-    function startEdit(id) {
-        const collections = JSON.parse(localStorage.getItem('collections')) || [];
-        const item = collections.find(c => c.id === id);
+    // 5. حفظ التحصيل في السحاب
+    function saveCollection() {
+        let customerInput = document.getElementById('collectCustomer').value;
+        const customer = customerInput.replace(' ✅', '').replace(' ❌', '').trim();
+        const amount = document.getElementById('collectAmount').value;
+        const date = document.getElementById('collectDate').value;
 
+        if(!customer || !amount || amount <= 0) return alert("البيانات غير مكتملة");
+
+        if (editModeId) {
+            db.ref('collections/' + editModeId).update({
+                customer, amount: parseFloat(amount), date
+            }).then(() => {
+                editModeId = null;
+                document.getElementById('mainBtn').innerText = "حفظ في السحابة";
+                document.getElementById('mainBtn').style.background = "var(--primary)";
+            });
+        } else {
+            db.ref('collections').push({
+                customer, amount: parseFloat(amount), date
+            });
+        }
+
+        document.getElementById('collectAmount').value = "";
+        document.getElementById('collectCustomer').value = "";
+    }
+
+    function startEdit(id) {
+        const item = allCollections.find(c => c.id === id);
         if (item) {
             editModeId = id;
             document.getElementById('collectCustomer').value = item.customer;
             document.getElementById('collectAmount').value = item.amount;
             document.getElementById('collectDate').value = item.date;
-
-            const btn = document.getElementById('mainBtn');
-            btn.innerText = "تحديث دفعة العميل";
-            btn.style.background = "var(--edit-color)";
-            document.getElementById('formLabel').innerText = "وضع التعديل الحالي:";
-            
+            document.getElementById('mainBtn').innerText = "تحديث البيانات";
+            document.getElementById('mainBtn').style.background = "var(--edit-color)";
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     }
 
     function deleteCollection(id) {
-        if(confirm("هل أنت متأكد من حذف هذا المبلغ من الدفتر؟")) {
-            let collections = JSON.parse(localStorage.getItem('collections')) || [];
-            collections = collections.filter(c => c.id !== id);
-            localStorage.setItem('collections', JSON.stringify(collections));
-            loadCollections();
+        if(confirm("حذف هذا السجل نهائياً من السحاب؟")) {
+            db.ref('collections/' + id).remove();
         }
     }
 
+    function resetTrip() {
+        if(confirm("تنبيه: سيتم مسح كافة تحصيلات هذه الرحلة لتصفير الدفتر. هل أنت متأكد؟")) {
+            db.ref('collections').remove();
+        }
+    }
+
+    // انطلاق!
     init();
 </script>
 </body>
