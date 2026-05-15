@@ -102,10 +102,9 @@
         <input type="hidden" id="editKey" value=""> 
         
         <div class="form-group">
-            <label>العميل:</label>
-            <select id="shipCustomer">
-                <option value="">-- اختر العميل --</option>
-            </select>
+            <label>العميل (بحث):</label>
+            <input list="customersList" id="shipCustomer" placeholder="اكتب اسم العميل للبحث...">
+            <datalist id="customersList"></datalist>
         </div>
 
         <div class="form-group">
@@ -145,7 +144,6 @@
 </div>
 
 <script>
-    // تكوين Firebase (نفس إعدادات المشروع)
     const firebaseConfig = {
         apiKey: "AIzaSyAzjuBkBAKS5Y_gU7qmwwaMh1Ay9me1uds",
         authDomain: "swiftship-c829c.firebaseapp.com",
@@ -161,12 +159,19 @@
 
     let allShipments = {};
 
-    // تحميل العملاء والشركات لملء القوائم
     function initLists() {
+        // تحميل العملاء في الـ Datalist للبحث
         db.ref('customers').once('value', snap => {
-            const select = document.getElementById('shipCustomer');
+            const datalist = document.getElementById('customersList');
             const data = snap.val();
-            if(data) Object.values(data).forEach(c => select.add(new Option(c.name, c.name)));
+            if(data) {
+                datalist.innerHTML = "";
+                Object.values(data).forEach(c => {
+                    let option = document.createElement('option');
+                    option.value = c.name;
+                    datalist.appendChild(option);
+                });
+            }
         });
 
         db.ref('companies').once('value', snap => {
@@ -187,14 +192,14 @@
         document.getElementById('totalDisplay').innerText = (price * count);
     }
 
-    // استماع لحظي للشحنات
     db.ref('shipments').on('value', snapshot => {
         allShipments = snapshot.val() || {};
         renderRecent();
     });
 
     function saveShipment() {
-        const customer = document.getElementById('shipCustomer').value;
+        // سحب الاسم من الـ Input
+        const customer = document.getElementById('shipCustomer').value.trim();
         const compSelect = document.getElementById('shipCompany');
         const companyPrice = compSelect.value;
         const companyName = compSelect.options[compSelect.selectedIndex].getAttribute('data-name');
@@ -205,15 +210,13 @@
         const now = new Date();
         const today = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
 
-        if(!customer || companyPrice == "0") return alert("برجاء اختيار العميل والشركة أولاً");
+        if(!customer || companyPrice == "0") return alert("برجاء إدخال اسم العميل واختيار الشركة");
 
         if(editKey) {
-            // تحديث
             db.ref('shipments/' + editKey).update({
                 customer, companyName, count, total
             }).then(() => { alert("تم تحديث الشحنة"); resetForm(); });
         } else {
-            // فحص التكرار
             const duplicateKey = Object.keys(allShipments).find(k => 
                 allShipments[k].customer === customer && 
                 allShipments[k].dateOnly === today && 
@@ -227,7 +230,6 @@
                 } else return;
             }
 
-            // إضافة جديد
             db.ref('shipments').push({
                 customer, companyName, count, total,
                 status: 'pending',
@@ -261,7 +263,7 @@
 
     function resetForm() {
         document.getElementById('editKey').value = "";
-        document.getElementById('shipCustomer').selectedIndex = 0;
+        document.getElementById('shipCustomer').value = ""; // تصفير الـ Input
         document.getElementById('shipCompany').selectedIndex = 0;
         document.getElementById('pkgCount').value = 1;
         document.getElementById('totalDisplay').innerText = "0";
@@ -284,14 +286,13 @@
                 <td>
                     <div class="action-cell">
                         ${s.status === 'paid' ? 
-                            '<i class="fas fa-check-circle status-icon" style="color:#2ecc71" title="تم السداد"></i>' : 
-                            '<i class="fas fa-clock status-icon" style="color:#bdc3c7" title="انتظار"></i>'}
+                            '<i class="fas fa-check-circle" style="color:#2ecc71"></i>' : 
+                            '<i class="fas fa-clock" style="color:#bdc3c7"></i>'}
                         
-                        <button class="btn-action btn-edit" onclick="loadForEdit('${key}')" title="تعديل">
+                        <button class="btn-action btn-edit" onclick="loadForEdit('${key}')">
                             <i class="fas fa-edit"></i>
                         </button>
-
-                        <button class="btn-action btn-delete" onclick="deleteShipment('${key}')" title="حذف">
+                        <button class="btn-action btn-delete" onclick="deleteShipment('${key}')">
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </div>
