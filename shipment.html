@@ -3,17 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تسجيل الشحنات | نظام الشحن</title>
+    <title>تسجيل الشحنات | SwiftShip</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root {
             --primary-color: #6c5ce7;
-            --accent-color: #00b894; /* لون التعديل */
+            --accent-color: #00b894;
             --header-grad: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
             --bg-color: #f0f2f5;
         }
 
-        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg-color); margin: 0; padding: 0; }
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            margin: 0; padding: 0; min-height: 100vh;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; }
+        }
         
         .header {
             background: var(--header-grad); color: white; padding: 25px 20px;
@@ -22,16 +36,15 @@
         }
 
         .header a { color: white; text-decoration: none; margin-left: 15px; }
-
         .container { padding: 20px; max-width: 600px; margin: 0 auto; }
 
         .card {
-            background: white; padding: 20px; border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-top: -10px;
-            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
+            padding: 20px; border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1); margin-top: -10px;
+            transition: all 0.3s ease; border: 1px solid rgba(255,255,255,0.3);
         }
 
-        /* وضع التعديل يغير لون حدود الكارت */
         .card.edit-mode { border: 2px solid var(--accent-color); background: #f7fff9; }
 
         .form-group { margin-bottom: 15px; }
@@ -59,12 +72,11 @@
             transition: transform 0.2s, opacity 0.2s;
         }
         
-        .btn-submit:active { transform: scale(0.98); }
         .btn-submit.edit-btn { background: var(--accent-color); }
 
         .recent-table {
             width: 100%; background: white; border-radius: 20px;
-            overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             border-collapse: collapse; margin-top: 20px;
         }
 
@@ -72,22 +84,22 @@
         .recent-table td { padding: 12px; border-bottom: 1px solid #f5f5f5; font-size: 0.9rem; }
         
         .action-cell { display: flex; align-items: center; justify-content: start; gap: 12px; }
-        .btn-action { border: none; background: none; cursor: pointer; font-size: 1.1rem; padding: 5px; transition: color 0.2s; }
+        .btn-action { border: none; background: none; cursor: pointer; font-size: 1.1rem; padding: 5px; }
         .btn-edit { color: var(--accent-color); }
         .btn-delete { color: #ff7675; }
-        .status-icon { font-size: 1.1rem; }
+        h3 { color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.2); }
     </style>
 </head>
 <body>
 
 <div class="header">
     <a href="index.html"><i class="fas fa-arrow-right"></i></a>
-    <h2 style="margin:0; font-size:1.3rem;">تسجيل شحنة جديدة</h2>
+    <h2 style="margin:0; font-size:1.3rem;">تسجيل شحنة جديدة 📦</h2>
 </div>
 
 <div class="container">
     <div id="mainCard" class="card">
-        <input type="hidden" id="editId" value=""> <!-- حقل مخفي لتخزين ID الشحنة عند التعديل -->
+        <input type="hidden" id="editKey" value=""> 
         
         <div class="form-group">
             <label>العميل:</label>
@@ -118,7 +130,7 @@
         </button>
     </div>
 
-    <h3 style="margin: 25px 10px 10px; font-size: 1rem; color: #444;">آخر العمليات المسجلة</h3>
+    <h3 style="margin: 25px 10px 10px; font-size: 1rem;">آخر العمليات المسجلة (Live)</h3>
     <table class="recent-table">
         <thead>
             <tr>
@@ -133,135 +145,138 @@
 </div>
 
 <script>
-    const customers = JSON.parse(localStorage.getItem('customers')) || [];
-    const companies = JSON.parse(localStorage.getItem('companies')) || [];
-    
-    const custSelect = document.getElementById('shipCustomer');
-    const compSelect = document.getElementById('shipCompany');
-    const pkgInput = document.getElementById('pkgCount');
-    const mainCard = document.getElementById('mainCard');
-    const btnText = document.getElementById('btnText');
-    const saveBtn = document.getElementById('saveBtn');
-    const editIdInput = document.getElementById('editId');
+    // تكوين Firebase (نفس إعدادات المشروع)
+    const firebaseConfig = {
+        apiKey: "AIzaSyAzjuBkBAKS5Y_gU7qmwwaMh1Ay9me1uds",
+        authDomain: "swiftship-c829c.firebaseapp.com",
+        projectId: "swiftship-c829c",
+        databaseURL: "https://swiftship-c829c-default-rtdb.firebaseio.com/",
+        storageBucket: "swiftship-c829c.firebasestorage.app",
+        messagingSenderId: "410866251849",
+        appId: "1:410866251849:web:4c606d59d83c2c2756a798"
+    };
 
-    // تعبئة القوائم
-    customers.forEach(c => custSelect.add(new Option(c.name, c.name)));
-    companies.forEach(c => {
-        let opt = new Option(`${c.name} (${c.price}ج)`, c.price);
-        opt.setAttribute('data-name', c.name);
-        compSelect.add(opt);
-    });
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let allShipments = {};
+
+    // تحميل العملاء والشركات لملء القوائم
+    function initLists() {
+        db.ref('customers').once('value', snap => {
+            const select = document.getElementById('shipCustomer');
+            const data = snap.val();
+            if(data) Object.values(data).forEach(c => select.add(new Option(c.name, c.name)));
+        });
+
+        db.ref('companies').once('value', snap => {
+            const select = document.getElementById('shipCompany');
+            const data = snap.val();
+            if(data) Object.values(data).forEach(c => {
+                let opt = new Option(`${c.name} (${c.price}ج)`, c.price);
+                opt.setAttribute('data-name', c.name);
+                select.add(opt);
+            });
+        });
+    }
 
     function calculate() {
+        const compSelect = document.getElementById('shipCompany');
         const price = parseFloat(compSelect.value) || 0;
-        const count = parseInt(pkgInput.value) || 0;
+        const count = parseInt(document.getElementById('pkgCount').value) || 0;
         document.getElementById('totalDisplay').innerText = (price * count);
     }
 
+    // استماع لحظي للشحنات
+    db.ref('shipments').on('value', snapshot => {
+        allShipments = snapshot.val() || {};
+        renderRecent();
+    });
+
     function saveShipment() {
-        const customer = custSelect.value;
+        const customer = document.getElementById('shipCustomer').value;
+        const compSelect = document.getElementById('shipCompany');
         const companyPrice = compSelect.value;
         const companyName = compSelect.options[compSelect.selectedIndex].getAttribute('data-name');
-        const count = parseInt(pkgInput.value);
+        const count = parseInt(document.getElementById('pkgCount').value);
         const total = document.getElementById('totalDisplay').innerText;
-        const editId = editIdInput.value;
+        const editKey = document.getElementById('editKey').value;
 
         const now = new Date();
         const today = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
 
         if(!customer || companyPrice == "0") return alert("برجاء اختيار العميل والشركة أولاً");
 
-        let shipments = JSON.parse(localStorage.getItem('shipments')) || [];
-
-        if(editId) {
-            // حالة تحديث شحنة موجودة (وضع التعديل اليدوي)
-            const idx = shipments.findIndex(s => s.id == editId);
-            if(idx !== -1) {
-                shipments[idx].customer = customer;
-                shipments[idx].companyName = companyName;
-                shipments[idx].count = count;
-                shipments[idx].total = total;
-                alert("تم تحديث الشحنة بنجاح");
-            }
+        if(editKey) {
+            // تحديث
+            db.ref('shipments/' + editKey).update({
+                customer, companyName, count, total
+            }).then(() => { alert("تم تحديث الشحنة"); resetForm(); });
         } else {
-            // حالة إضافة جديدة أو فحص التكرار
-            const existingIdx = shipments.findIndex(s => 
-                s.customer === customer && 
-                s.companyName === companyName && 
-                s.dateOnly === today && 
-                s.status !== 'paid'
+            // فحص التكرار
+            const duplicateKey = Object.keys(allShipments).find(k => 
+                allShipments[k].customer === customer && 
+                allShipments[k].dateOnly === today && 
+                allShipments[k].status !== 'paid'
             );
 
-            if(existingIdx !== -1) {
+            if(duplicateKey) {
                 if(confirm(`العميل مسجل اليوم بالفعل. هل تريد فتح بيانات الشحنة لتعديلها؟`)) {
-                    loadForEdit(shipments[existingIdx].id);
-                    return; // نخرج من الدالة لفتح وضع التعديل
-                } else { return; }
-            } else {
-                shipments.push({
-                    id: Date.now(),
-                    customer,
-                    companyName,
-                    count,
-                    total,
-                    status: 'pending',
-                    dateOnly: today,
-                    dateTime: now.toLocaleString()
-                });
-                alert("تم حفظ شحنة جديدة");
+                    loadForEdit(duplicateKey);
+                    return;
+                } else return;
             }
-        }
 
-        localStorage.setItem('shipments', JSON.stringify(shipments));
-        resetForm();
-        renderRecent();
+            // إضافة جديد
+            db.ref('shipments').push({
+                customer, companyName, count, total,
+                status: 'pending',
+                dateOnly: today,
+                dateTime: now.toLocaleString()
+            }).then(() => { alert("تم حفظ شحنة جديدة"); resetForm(); });
+        }
     }
 
-    // دالة لتحميل البيانات في الفورم للتعديل
-    function loadForEdit(id) {
-        const shipments = JSON.parse(localStorage.getItem('shipments')) || [];
-        const shipment = shipments.find(s => s.id == id);
+    function loadForEdit(key) {
+        const s = allShipments[key];
+        document.getElementById('editKey').value = key;
+        document.getElementById('shipCustomer').value = s.customer;
         
-        if(shipment) {
-            editIdInput.value = shipment.id;
-            custSelect.value = shipment.customer;
-            
-            // اختيار شركة الشحن بناءً على الاسم
-            for(let i=0; i<compSelect.options.length; i++) {
-                if(compSelect.options[i].getAttribute('data-name') === shipment.companyName) {
-                    compSelect.selectedIndex = i;
-                    break;
-                }
+        const compSelect = document.getElementById('shipCompany');
+        for(let i=0; i<compSelect.options.length; i++) {
+            if(compSelect.options[i].getAttribute('data-name') === s.companyName) {
+                compSelect.selectedIndex = i;
+                break;
             }
-            
-            pkgInput.value = shipment.count;
-            calculate();
-            
-            // تغيير شكل الواجهة لوضع التعديل
-            mainCard.classList.add('edit-mode');
-            saveBtn.classList.add('edit-btn');
-            btnText.innerText = "تعديل الشحنة الحالية";
-            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
+        
+        document.getElementById('pkgCount').value = s.count;
+        calculate();
+        
+        document.getElementById('mainCard').classList.add('edit-mode');
+        document.getElementById('saveBtn').classList.add('edit-btn');
+        document.getElementById('btnText').innerText = "تعديل الشحنة الحالية";
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function resetForm() {
-        editIdInput.value = "";
-        custSelect.selectedIndex = 0;
-        compSelect.selectedIndex = 0;
-        pkgInput.value = 1;
+        document.getElementById('editKey').value = "";
+        document.getElementById('shipCustomer').selectedIndex = 0;
+        document.getElementById('shipCompany').selectedIndex = 0;
+        document.getElementById('pkgCount').value = 1;
         document.getElementById('totalDisplay').innerText = "0";
-        mainCard.classList.remove('edit-mode');
-        saveBtn.classList.remove('edit-btn');
-        btnText.innerText = "حفظ الشحنة";
+        document.getElementById('mainCard').classList.remove('edit-mode');
+        document.getElementById('saveBtn').classList.remove('edit-btn');
+        document.getElementById('btnText').innerText = "حفظ الشحنة";
     }
 
     function renderRecent() {
-        const shipments = JSON.parse(localStorage.getItem('shipments')) || [];
         const tbody = document.getElementById('recentBody');
-        const displayData = shipments.slice(-10).reverse();
+        const keys = Object.keys(allShipments).reverse().slice(0, 10);
 
-        tbody.innerHTML = displayData.map(s => `
+        tbody.innerHTML = keys.map(key => {
+            const s = allShipments[key];
+            return `
             <tr>
                 <td><b>${s.customer}</b></td>
                 <td>${s.count} طرد<br><small>${s.companyName}</small></td>
@@ -272,29 +287,25 @@
                             '<i class="fas fa-check-circle status-icon" style="color:#2ecc71" title="تم السداد"></i>' : 
                             '<i class="fas fa-clock status-icon" style="color:#bdc3c7" title="انتظار"></i>'}
                         
-                        <button class="btn-action btn-edit" onclick="loadForEdit(${s.id})" title="تعديل">
+                        <button class="btn-action btn-edit" onclick="loadForEdit('${key}')" title="تعديل">
                             <i class="fas fa-edit"></i>
                         </button>
 
-                        <button class="btn-action btn-delete" onclick="deleteShipment(${s.id})" title="حذف">
+                        <button class="btn-action btn-delete" onclick="deleteShipment('${key}')" title="حذف">
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </div>
                 </td>
-            </tr>
-        `).join('');
+            </tr>`;
+        }).join('');
     }
 
-    function deleteShipment(id) {
+    function deleteShipment(key) {
         if(!confirm("حذف هذه العملية؟")) return;
-        let shipments = JSON.parse(localStorage.getItem('shipments')) || [];
-        shipments = shipments.filter(s => s.id !== id);
-        localStorage.setItem('shipments', JSON.stringify(shipments));
-        renderRecent();
-        if(editIdInput.value == id) resetForm();
+        db.ref('shipments/' + key).remove();
     }
 
-    renderRecent();
+    initLists();
 </script>
 </body>
 </html>
