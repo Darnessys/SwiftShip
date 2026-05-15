@@ -3,81 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إدارة العملاء | نظام الشحن</title>
+    <title>إدارة العملاء | SwiftShip</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
     <style>
         :root {
-            --primary-color: #6c5ce7; 
+            --primary: #6c5ce7; 
             --header-grad: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
-            --bg-color: #f0f2f5;
-            --text-dark: #2d3436;
+            --bg: #f8f9fa;
+            --glass: rgba(255, 255, 255, 0.95);
+            --edit-color: #0984e3;
+            --delete-color: #d63031;
         }
 
         body {
             font-family: 'Segoe UI', sans-serif;
-            background-color: var(--bg-color);
-            margin: 0; padding: 0;
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            margin: 0; padding: 0; min-height: 100vh;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; }
         }
 
         .header {
-            background: var(--header-grad);
-            color: white; padding: 25px 20px;
-            display: flex; align-items: center;
-            border-bottom-left-radius: 30px;
-            border-bottom-right-radius: 30px;
-            box-shadow: 0 4px 12px rgba(108, 92, 231, 0.3);
+            background: var(--header-grad); color: white; padding: 20px;
+            display: flex; align-items: center; border-bottom-left-radius: 30px;
+            border-bottom-right-radius: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
 
-        .header a { color: white; text-decoration: none; margin-left: 15px; }
-
-        .container { padding: 20px; max-width: 600px; margin: 0 auto; }
+        .header a { color: white; text-decoration: none; margin-left: 15px; font-size: 1.2rem; }
+        .container { padding: 20px; max-width: 650px; margin: 0 auto; }
 
         .card {
-            background: white; padding: 25px; border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-top: -10px;
+            background: var(--glass); backdrop-filter: blur(10px);
+            padding: 25px; border-radius: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.3); margin-bottom: 20px;
         }
 
         .form-group { margin-bottom: 18px; }
-        label { display: block; margin-bottom: 8px; font-weight: bold; color: var(--primary-color); }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: var(--primary); }
         
         input {
-            width: 100%; padding: 14px; border: 2px solid #eee;
-            border-radius: 12px; box-sizing: border-box; outline: none;
+            width: 100%; padding: 14px; border: 1px solid #ddd;
+            border-radius: 12px; box-sizing: border-box; outline: none; font-size: 1rem;
         }
 
-        input:focus { border-color: var(--primary-color); }
+        input:focus { border-color: var(--primary); box-shadow: 0 0 8px rgba(108,92,231,0.2); }
 
         .btn-save {
             background: var(--header-grad); color: white; border: none;
             width: 100%; padding: 16px; border-radius: 12px;
-            font-size: 1.1rem; font-weight: bold; cursor: pointer;
+            font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.3s;
         }
+
+        .btn-update { background: linear-gradient(135deg, #0984e3, #74b9ff); display: none; }
+
+        h3 { color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.2); margin-top: 20px; }
 
         .customer-list {
             width: 100%; background: white; border-radius: 20px;
-            overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-            border-collapse: collapse; margin-top: 10px;
+            overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-collapse: collapse;
         }
 
-        .customer-list td { padding: 15px; border-bottom: 1px solid #f5f5f5; }
+        .customer-list td { padding: 15px; border-bottom: 1px solid #eee; }
 
         .cust-info { display: flex; justify-content: space-between; align-items: center; }
-        .id-badge { 
-            background: #f1f0ff; color: var(--primary-color); 
-            padding: 2px 8px; border-radius: 6px; font-weight: bold; font-size: 0.8rem;
-        }
+        .id-badge { background: #f1f0ff; color: var(--primary); padding: 2px 8px; border-radius: 6px; font-weight: bold; font-size: 0.8rem; }
+        
+        .actions { display: flex; gap: 15px; }
+        .btn-action { border: none; background: none; cursor: pointer; font-size: 1.1rem; transition: 0.2s; }
+        .btn-edit { color: var(--edit-color); }
+        .btn-delete { color: var(--delete-color); }
+        .btn-action:hover { transform: scale(1.2); }
     </style>
 </head>
 <body>
 
     <div class="header">
         <a href="index.html"><i class="fas fa-arrow-right"></i></a>
-        <h2 style="margin:0; font-size:1.3rem;">تسجيل عميل جديد</h2>
+        <h2 style="margin:0; font-size:1.3rem;">إدارة العملاء العابرة للحدود 🌍</h2>
     </div>
 
     <div class="container">
         <div class="card">
-            <div class="form-group">
+            <input type="hidden" id="editKey"> <div class="form-group">
                 <label>اسم العميل:</label>
                 <input type="text" id="custName" placeholder="الاسم ثلاثي">
             </div>
@@ -85,78 +100,133 @@
                 <label>رقم التليفون:</label>
                 <input type="tel" id="custPhone" placeholder="01xxxxxxxxx">
             </div>
-            <button class="btn-save" onclick="addCustomer()">حفظ البيانات</button>
+            <button class="btn-save" id="saveBtn" onclick="addCustomer()">حفظ في السحاب ✅</button>
+            <button class="btn-save btn-update" id="updateBtn" onclick="updateCustomer()">تحديث البيانات 🔄</button>
+            <button class="btn-save" id="cancelBtn" onclick="resetForm()" style="background:#636e72; margin-top:10px; display:none;">إلغاء التعديل</button>
         </div>
 
-        <h3>العملاء المسجلين</h3>
+        <h3>العملاء المسجلين (Live)</h3>
         <table class="customer-list">
-            <tbody id="customerBody"></tbody>
+            <tbody id="customerBody">
+                <tr><td style="text-align:center;">جاري تحميل البيانات...</td></tr>
+            </tbody>
         </table>
     </div>
 
     <script>
-        function render() {
-            // جلب البيانات مع التأكد أنها مصفوفة
-            const customers = JSON.parse(localStorage.getItem('customers')) || [];
+        const firebaseConfig = {
+            apiKey: "AIzaSyAzjuBkBAKS5Y_gU7qmwwaMh1Ay9me1uds",
+            authDomain: "swiftship-c829c.firebaseapp.com",
+            projectId: "swiftship-c829c",
+            databaseURL: "https://swiftship-c829c-default-rtdb.firebaseio.com/",
+            storageBucket: "swiftship-c829c.firebasestorage.app",
+            messagingSenderId: "410866251849",
+            appId: "1:410866251849:web:4c606d59d83c2c2756a798"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let allCustomers = {}; // لتخزين البيانات محلياً للمقارنة ومنع التكرار
+
+        // عرض البيانات
+        db.ref('customers').on('value', (snapshot) => {
             const tbody = document.getElementById('customerBody');
+            allCustomers = snapshot.val() || {};
             
-            tbody.innerHTML = customers.map(c => {
-                // التأكد من وجود قيمة للـ ID حتى لو البيانات قديمة
-                const displayId = c.id || 'N/A'; 
-                return `
+            if (Object.keys(allCustomers).length === 0) {
+                tbody.innerHTML = '<tr><td style="text-align:center; padding:20px; color:#636e72;">لا يوجد عملاء حالياً</td></tr>';
+                return;
+            }
+
+            let rows = '';
+            Object.keys(allCustomers).forEach((key) => {
+                const c = allCustomers[key];
+                rows += `
                 <tr>
                     <td>
                         <div class="cust-info">
                             <div>
-                                <span class="id-badge">ID: #${displayId}</span>
+                                <span class="id-badge">ID: #${c.id}</span>
                                 <div style="margin-top:5px;"><b>${c.name}</b></div>
                                 <div style="color:gray; font-size:0.9rem;">${c.phone}</div>
                             </div>
-                            <button onclick="deleteCustomer(${c.id})" style="color:#ff7675; border:none; background:none; cursor:pointer;">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
+                            <div class="actions">
+                                <button onclick="prepareEdit('${key}')" class="btn-action btn-edit"><i class="fas fa-edit"></i></button>
+                                <button onclick="deleteCustomer('${key}')" class="btn-action btn-delete"><i class="fas fa-trash-alt"></i></button>
+                            </div>
                         </div>
                     </td>
                 </tr>`;
-            }).join('');
+            });
+            tbody.innerHTML = rows;
+        });
+
+        // إضافة عميل جديد مع منع التكرار
+        function addCustomer() {
+            const name = document.getElementById('custName').value.trim();
+            const phone = document.getElementById('custPhone').value.trim();
+            
+            if(!name || !phone) return alert("برجاء إدخال البيانات كاملة");
+
+            // منع التكرار
+            const isDuplicate = Object.values(allCustomers).some(c => c.name === name || c.phone === phone);
+            if(isDuplicate) return alert("خطأ: هذا العميل أو رقم الهاتف مسجل بالفعل!");
+
+            const saveBtn = document.getElementById('saveBtn');
+            saveBtn.disabled = true;
+
+            db.ref('customers').limitToLast(1).once('value', (snapshot) => {
+                let newId = 1;
+                const lastData = snapshot.val();
+                if (lastData) {
+                    const lastKey = Object.keys(lastData)[0];
+                    newId = parseInt(lastData[lastKey].id) + 1;
+                }
+
+                db.ref('customers').push({ id: newId, name, phone, createdAt: new Date().toISOString() })
+                .then(() => { resetForm(); saveBtn.disabled = false; });
+            });
         }
 
-        function addCustomer() {
-            const name = document.getElementById('custName').value;
-            const phone = document.getElementById('custPhone').value;
-            
-            if(!name || !phone) return alert("برجاء إدخال البيانات");
-            
-            let customers = JSON.parse(localStorage.getItem('customers')) || [];
-            
-            // إصلاح منطق الـ ID: نأخذ آخر ID مسجل ونزود 1
-            const lastId = customers.length > 0 ? Math.max(...customers.map(c => parseInt(c.id) || 0)) : 0;
-            const newId = lastId + 1;
+        // تجهيز التعديل
+        function prepareEdit(key) {
+            const customer = allCustomers[key];
+            document.getElementById('custName').value = customer.name;
+            document.getElementById('custPhone').value = customer.phone;
+            document.getElementById('editKey').value = key;
 
-            // التأكد من تعريف كل الخانات بوضوح عند الحفظ
-            const newEntry = {
-                id: newId,
-                name: name,
-                phone: phone
-            };
+            document.getElementById('saveBtn').style.display = 'none';
+            document.getElementById('updateBtn').style.display = 'block';
+            document.getElementById('cancelBtn').style.display = 'block';
+            window.scrollTo(0,0);
+        }
 
-            customers.push(newEntry);
-            localStorage.setItem('customers', JSON.stringify(customers));
-            
+        // تنفيذ التحديث
+        function updateCustomer() {
+            const key = document.getElementById('editKey').value;
+            const name = document.getElementById('custName').value.trim();
+            const phone = document.getElementById('custPhone').value.trim();
+
+            if(!name || !phone) return alert("الخانات لا يمكن أن تكون فارغة");
+
+            db.ref('customers/' + key).update({ name, phone })
+            .then(() => { alert("تم تحديث البيانات"); resetForm(); });
+        }
+
+        function resetForm() {
             document.getElementById('custName').value = "";
             document.getElementById('custPhone').value = "";
-            render();
+            document.getElementById('editKey').value = "";
+            document.getElementById('saveBtn').style.display = 'block';
+            document.getElementById('updateBtn').style.display = 'none';
+            document.getElementById('cancelBtn').style.display = 'none';
         }
 
-        function deleteCustomer(id) {
+        function deleteCustomer(key) {
             if(!confirm("حذف العميل؟")) return;
-            let customers = JSON.parse(localStorage.getItem('customers')) || [];
-            customers = customers.filter(c => c.id !== id);
-            localStorage.setItem('customers', JSON.stringify(customers));
-            render();
+            db.ref('customers/' + key).remove();
         }
-
-        render();
     </script>
 </body>
 </html>
