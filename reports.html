@@ -3,11 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>كشف حساب تفصيلي</title>
+    <title>تسوية حسابات الشركات | SwiftShip</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root { --primary: #2c3e50; --success: #27ae60; --bg: #f4f7f6; --danger: #e74c3c; --accent: #3498db; }
         body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); margin: 0; padding: 0; }
+        
         .header { background: var(--success); color: white; padding: 15px; display: flex; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .header a { color: white; text-decoration: none; margin-left: 15px; font-size: 1.2rem; }
         .container { padding: 15px; max-width: 800px; margin: 0 auto; }
@@ -35,14 +40,13 @@
         }
 
         .btn-pay {
-            background: var(--success); color: white; border: none; padding: 12px;
+            background: var(--success); color: white; border: none; padding: 15px;
             width: 100%; border-radius: 8px; font-size: 1.1rem; font-weight: bold;
-            cursor: pointer; margin-top: 15px; transition: transform 0.2s, background 0.3s;
+            cursor: pointer; margin-top: 15px; transition: all 0.2s;
             display: flex; align-items: center; justify-content: center; gap: 10px;
         }
-        .btn-pay:hover { background: #219150; }
+        .btn-pay:hover { background: #219150; transform: translateY(-2px); }
         
-        /* زر السداد الفردي */
         .btn-single-pay {
             background: #fff; color: var(--success); border: 1.5px solid var(--success);
             padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8rem;
@@ -58,14 +62,14 @@
 
 <div class="header">
     <a href="index.html"><i class="fas fa-arrow-right"></i></a>
-    <h2 style="margin:0; font-size:1.2rem;">تسوية حسابات الشركات</h2>
+    <h2 style="margin:0; font-size:1.2rem;">تسوية حسابات الشركات 💸</h2>
 </div>
 
 <div class="container">
     <div class="card">
         <label>اختر شركة الشحن لمراجعة حسابها:</label>
         <select id="companyFilter" onchange="showCompanyDetails()">
-            <option value="">-- اختر شركة --</option>
+            <option value="">-- تحميل الشركات... --</option>
         </select>
     </div>
 
@@ -110,18 +114,37 @@
 </div>
 
 <script>
+    // تكوين Firebase
+    const firebaseConfig = {
+        apiKey: "AIzaSyAzjuBkBAKS5Y_gU7qmwwaMh1Ay9me1uds",
+        authDomain: "swiftship-c829c.firebaseapp.com",
+        projectId: "swiftship-c829c",
+        databaseURL: "https://swiftship-c829c-default-rtdb.firebaseio.com/",
+        storageBucket: "swiftship-c829c.firebasestorage.app",
+        messagingSenderId: "410866251849",
+        appId: "1:410866251849:web:4c606d59d83c2c2756a798"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let currentShipments = {}; // لتخزين الشحنات محلياً بعد جلبها
+
+    // 1. تحميل الشركات في القائمة
     function loadCompanies() {
-        const companies = JSON.parse(localStorage.getItem('companies')) || [];
-        const select = document.getElementById('companyFilter');
-        companies.forEach(c => {
-            let opt = new Option(c.name, c.name);
-            select.add(opt);
+        db.ref('companies').on('value', snap => {
+            const select = document.getElementById('companyFilter');
+            select.innerHTML = '<option value="">-- اختر شركة --</option>';
+            const data = snap.val();
+            if(data) {
+                Object.values(data).forEach(c => select.add(new Option(c.name, c.name)));
+            }
         });
     }
 
+    // 2. عرض تفاصيل حساب الشركة المختارة
     function showCompanyDetails() {
         const selectedCompany = document.getElementById('companyFilter').value;
-        const shipments = JSON.parse(localStorage.getItem('shipments')) || [];
         const detailsBody = document.getElementById('detailsBody');
         const reportContent = document.getElementById('reportContent');
         const noData = document.getElementById('noData');
@@ -132,76 +155,86 @@
             return;
         }
 
-        const pendingShipments = shipments.filter(s => 
-            s.companyName === selectedCompany && s.status === 'pending'
-        );
+        // جلب الشحنات من Firebase
+        db.ref('shipments').once('value', snap => {
+            currentShipments = snap.val() || {};
+            
+            // تصفية الشحنات: للشركة المختارة وحالتها "pending" فقط
+            const pendingKeys = Object.keys(currentShipments).filter(key => 
+                currentShipments[key].companyName === selectedCompany && 
+                currentShipments[key].status === 'pending'
+            );
 
-        let totalMoney = 0;
-        let totalPkgs = 0;
-        let rows = "";
+            let totalMoney = 0;
+            let totalPkgs = 0;
+            let rows = "";
 
-        pendingShipments.forEach(s => {
-            totalMoney += parseFloat(s.total);
-            totalPkgs += parseInt(s.count);
-            rows += `
-                <tr>
-                    <td><b>${s.customer}</b><br><small style="color:#999">${s.dateOnly}</small></td>
-                    <td>${s.count} طرد</td>
-                    <td style="color:var(--success); font-weight:bold;">${s.total} ج</td>
-                    <td>
-                        <button class="btn-single-pay" onclick="paySingle(${s.id}, '${s.customer}')">
-                            سداد
-                        </button>
-                    </td>
-                </tr>
-            `;
+            pendingKeys.forEach(key => {
+                const s = currentShipments[key];
+                totalMoney += parseFloat(s.total);
+                totalPkgs += parseInt(s.count);
+                rows += `
+                    <tr>
+                        <td><b>${s.customer}</b><br><small style="color:#999">${s.dateOnly}</small></td>
+                        <td>${s.count} طرد</td>
+                        <td style="color:var(--success); font-weight:bold;">${s.total} ج</td>
+                        <td>
+                            <button class="btn-single-pay" onclick="paySingle('${key}', '${s.customer}')">
+                                سداد
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            if (pendingKeys.length > 0) {
+                detailsBody.innerHTML = rows;
+                document.getElementById('totalAmount').innerText = totalMoney + " ج.م";
+                document.getElementById('totalPackages').innerText = totalPkgs + " طرد";
+                document.getElementById('selectedCompName').innerText = selectedCompany;
+                reportContent.style.display = 'block';
+                noData.style.display = 'none';
+            } else {
+                reportContent.style.display = 'none';
+                document.getElementById('noDataText').innerHTML = `حساب شركة <b>${selectedCompany}</b> مسدد بالكامل. ✅`;
+                noData.style.display = 'block';
+            }
         });
-
-        if (pendingShipments.length > 0) {
-            detailsBody.innerHTML = rows;
-            document.getElementById('totalAmount').innerText = totalMoney + " ج.م";
-            document.getElementById('totalPackages').innerText = totalPkgs + " طرد";
-            document.getElementById('selectedCompName').innerText = selectedCompany;
-            reportContent.style.display = 'block';
-            noData.style.display = 'none';
-        } else {
-            reportContent.style.display = 'none';
-            document.getElementById('noDataText').innerHTML = `حساب شركة <b>${selectedCompany}</b> مسدد بالكامل.`;
-            noData.style.display = 'block';
-        }
     }
 
-    // سداد شحنة واحدة فقط
-    function paySingle(id, customerName) {
+    // 3. سداد شحنة واحدة فقط في Firebase
+    function paySingle(key, customerName) {
         if(!confirm(`تأكيد سداد شحنة العميل: ${customerName}؟`)) return;
 
-        let shipments = JSON.parse(localStorage.getItem('shipments')) || [];
-        const idx = shipments.findIndex(s => s.id === id);
-        
-        if(idx !== -1) {
-            shipments[idx].status = 'paid';
-            shipments[idx].paidAt = new Date().toLocaleString();
-            localStorage.setItem('shipments', JSON.stringify(shipments));
-            showCompanyDetails(); // تحديث الجدول فوراً
-        }
+        db.ref('shipments/' + key).update({
+            status: 'paid',
+            paidAt: new Date().toLocaleString()
+        }).then(() => {
+            showCompanyDetails(); // إعادة تحميل البيانات بعد التحديث
+        });
     }
 
-    // سداد الإجمالي
+    // 4. سداد الإجمالي بالكامل (Batch Update)
     function settleAccounts() {
         const selectedCompany = document.getElementById('companyFilter').value;
         const total = document.getElementById('totalAmount').innerText;
         if(!confirm(`هل أنت متأكد من سداد الإجمالي (${total}) لشركة ${selectedCompany}؟`)) return;
 
-        let shipments = JSON.parse(localStorage.getItem('shipments')) || [];
-        shipments = shipments.map(s => {
+        const updates = {};
+        const now = new Date().toLocaleString();
+
+        Object.keys(currentShipments).forEach(key => {
+            const s = currentShipments[key];
             if(s.companyName === selectedCompany && s.status === 'pending') {
-                return { ...s, status: 'paid', paidAt: new Date().toLocaleString() };
+                updates[`shipments/${key}/status`] = 'paid';
+                updates[`shipments/${key}/paidAt`] = now;
             }
-            return s;
         });
 
-        localStorage.setItem('shipments', JSON.stringify(shipments));
-        showCompanyDetails();
+        db.ref().update(updates).then(() => {
+            alert("تم تسوية الحساب بالكامل بنجاح ✨");
+            showCompanyDetails();
+        });
     }
 
     loadCompanies();
