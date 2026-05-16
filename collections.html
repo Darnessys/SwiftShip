@@ -8,6 +8,10 @@
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root { --primary: #00b894; --edit-color: #0984e3; --bg: #f0f2f5; --warning: #e67e22; --danger: #d63031; }
@@ -34,6 +38,17 @@
         .btn-edit { color: var(--edit-color); margin-left: 15px; }
         .btn-delete { color: #e74c3c; }
         
+        /* تنسيقات مخصصة للـ Select2 لتتناسب مع تصميم الصفحة الأصلي وتمنع زووم الكيبورد */
+        .select2-container--default .select2-selection--single {
+            height: 46px; border: 1px solid #ddd; border-radius: 8px; display: flex; align-items: center; margin: 10px 0;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 44px; left: 10px; right: auto;
+        }
+        .select2-container { width: 100% !important; }
+        .select2-dropdown { border: 2px solid var(--primary); border-radius: 8px; z-index: 9999; }
+        .select2-search__field { font-size: 16px !important; padding: 8px !important; }
+
         /* تحسين للموبايل */
         @media (max-width: 600px) {
             th, td { padding: 8px; font-size: 13px; }
@@ -49,8 +64,9 @@
 <div class="container">
     <div class="card">
         <label id="formLabel">تسجيل مبلغ محصل جديد:</label>
-        <input list="customersList" id="collectCustomer" placeholder="ابحث عن اسم العميل (✅ حصل / ❌ لسه)">
-        <datalist id="customersList"></datalist>
+        <select id="collectCustomer">
+            <option value="">-- ابحث عن اسم العميل (✅ حصل / ❌ لسه) --</option>
+        </select>
         
         <input type="number" id="collectAmount" placeholder="المبلغ المحصل (ج.م)">
         <input type="date" id="collectDate">
@@ -59,7 +75,9 @@
 
     <div class="card" style="padding: 15px;">
         <label><i class="fas fa-filter"></i> مراجعة سريعة:</label>
-        <input list="customersList" id="filterCustomer" oninput="renderAll()" placeholder="ابحث لمراجعة عميل معين...">
+        <select id="filterCustomer" onchange="renderAll()">
+            <option value="">-- اختر عميل معين للمراجعة أو استعرض الكل --</option>
+        </select>
         
         <div class="total-info">
             <span>إجمالي المحصل:</span>
@@ -92,7 +110,6 @@
 </div>
 
 <script>
-    // 1. إعدادات Firebase الخاصة بك
     const firebaseConfig = {
         apiKey: "AIzaSyAzjuBkBAKS5Y_gU7qmwwaMh1Ay9me1uds",
         authDomain: "swiftship-c829c.firebaseapp.com",
@@ -103,7 +120,6 @@
         appId: "1:410866251849:web:4c606d59d83c2c2756a798"
     };
 
-    // 2. تهيئة الاتصال
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
@@ -111,18 +127,32 @@
     let allCollections = [];
     let editModeId = null;
 
-    // 3. دالة التشغيل وسحب البيانات لحظياً
+    // تهيئة وتفعيل Select2 للقائمتين فور تحميل الصفحة
+    $(document).ready(function() {
+        $('#collectCustomer').select2({
+            dir: "rtl",
+            placeholder: "-- ابحث عن اسم العميل (✅ حصل / ❌ لسه) --",
+            allowClear: true
+        });
+
+        $('#filterCustomer').select2({
+            dir: "rtl",
+            placeholder: "-- اختر عميل معين للمراجعة أو استعرض الكل --",
+            allowClear: true
+        });
+    });
+
     function init() {
         document.getElementById('collectDate').valueAsDate = new Date();
 
-        // سحب العملاء (اللي رفعناهم من أكسس)
+        // سحب العملاء لحظياً
         db.ref('customers').on('value', (snapshot) => {
             allCustomers = [];
             snapshot.forEach(child => { allCustomers.push(child.val()); });
             renderAll();
         });
 
-        // سحب التحصيلات أونلاين
+        // سحب التحصيلات لحظياً
         db.ref('collections').on('value', (snapshot) => {
             allCollections = [];
             snapshot.forEach(child => {
@@ -132,37 +162,54 @@
         });
     }
 
-    // 4. دالة الرسم الشاملة (تحديث الواجهة)
     function renderAll() {
-        const dl = document.getElementById('customersList');
-        const collectedNames = allCollections.map(c => c.customer);
-        const filterText = document.getElementById('filterCustomer').value.replace(' ✅', '').replace(' ❌', '').trim();
+        const collectSelect = $('#collectCustomer');
+        const filterSelect = $('#filterCustomer');
+        
+        // حفظ القيم المحددة حالياً لتجنب تصفير الاختيار أثناء التحديث التلقائي لـ Firebase
+        const currentSelectedCollect = collectSelect.val();
+        const currentSelectedFilter = filterSelect.val();
 
-        // تحديث الداتا ليست ✅/❌
-        dl.innerHTML = "";
+        const collectedNames = allCollections.map(c => c.customer);
+        const filterText = filterSelect.val() || "";
+
+        // 1. تحديث قائمة العملاء (تسجيل محصل جديد) بـ ✅ و ❌ مع الحفاظ على التحديث لـ Select2
+        collectSelect.empty().append('<option value="">-- ابحث عن اسم العميل (✅ حصل / ❌ لسه) --</option>');
+        // 2. تحديث قائمة المراجعة السريعة أيضاً لتكون متطابقة ومتزامنة
+        filterSelect.empty().append('<option value="">-- اختر عميل معين للمراجعة أو استعرض الكل --</option>');
+
         allCustomers.forEach(c => {
-            let option = document.createElement('option');
-            option.value = collectedNames.includes(c.name) ? c.name + " ✅" : c.name + " ❌";
-            dl.appendChild(option);
+            const hasPaid = collectedNames.includes(c.name);
+            const displayName = hasPaid ? c.name + " ✅" : c.name + " ❌";
+            
+            collectSelect.append(new Option(displayName, c.name));
+            filterSelect.append(new Option(displayName, c.name));
         });
 
-        // تحديث قائمة المتبقيين
+        // إعادة تعيين القيم المخزنة وإشعار مكتبة Select2 بالتغيير
+        if(currentSelectedCollect) collectSelect.val(currentSelectedCollect);
+        if(currentSelectedFilter) filterSelect.val(currentSelectedFilter);
+        
+        collectSelect.trigger('change.select2');
+        filterSelect.trigger('change.select2');
+
+        // 3. تحديث قائمة المتبقيين لم يدفعوا (كما كانت تماماً)
         const pendingContainer = document.getElementById('pendingContainer');
         const pendingCount = document.getElementById('pendingCount');
         const pendingList = allCustomers.filter(c => !collectedNames.includes(c.name));
         
         pendingCount.innerText = pendingList.length;
-        pendingContainer.innerHTML = pendingList.length === 0 ? "<p style='color:green'>✅ تم تحصيل الكل!</p>" : "";
+        pendingContainer.innerHTML = pendingList.length === 0 ? "<p style='color:green; font-weight:bold;'>✅ تم تحصيل الكل!</p>" : "";
         pendingList.forEach(c => {
             pendingContainer.innerHTML += `<div class="pending-item"><span>${c.name}</span><small>(لم يدفع)</small></div>`;
         });
 
-        // تحديث جدول العمليات والإجمالي
+        // 4. تحديث جدول العمليات وحساب الإجمالي بناءً على فلتر المراجعة السريعة
         const tbody = document.getElementById('collectionsTable');
         let total = 0;
         tbody.innerHTML = "";
 
-        const displayData = filterText === "" ? allCollections : allCollections.filter(c => c.customer.includes(filterText));
+        const displayData = filterText === "" ? allCollections : allCollections.filter(c => c.customer === filterText);
 
         [...displayData].reverse().forEach(c => {
             total += parseFloat(c.amount);
@@ -181,10 +228,9 @@
         document.getElementById('totalCollected').innerText = total + " ج.م";
     }
 
-    // 5. حفظ التحصيل في السحاب
     function saveCollection() {
-        let customerInput = document.getElementById('collectCustomer').value;
-        const customer = customerInput.replace(' ✅', '').replace(' ❌', '').trim();
+        // سحب القيمة المحددة الصافية من Select2 بدون العلامات المضافة
+        const customer = $('#collectCustomer').val();
         const amount = document.getElementById('collectAmount').value;
         const date = document.getElementById('collectDate').value;
 
@@ -197,22 +243,25 @@
                 editModeId = null;
                 document.getElementById('mainBtn').innerText = "حفظ في السحابة";
                 document.getElementById('mainBtn').style.background = "var(--primary)";
+                $('#collectCustomer').val('').trigger('change');
             });
         } else {
             db.ref('collections').push({
                 customer, amount: parseFloat(amount), date
+            }).then(() => {
+                $('#collectCustomer').val('').trigger('change');
             });
         }
 
         document.getElementById('collectAmount').value = "";
-        document.getElementById('collectCustomer').value = "";
     }
 
     function startEdit(id) {
         const item = allCollections.find(c => c.id === id);
         if (item) {
             editModeId = id;
-            document.getElementById('collectCustomer').value = item.customer;
+            // تعيين القيمة لـ Select2 وعمل trigger لتحديث الواجهة
+            $('#collectCustomer').val(item.customer).trigger('change');
             document.getElementById('collectAmount').value = item.amount;
             document.getElementById('collectDate').value = item.date;
             document.getElementById('mainBtn').innerText = "تحديث البيانات";
@@ -233,7 +282,6 @@
         }
     }
 
-    // انطلاق!
     init();
 </script>
 </body>
