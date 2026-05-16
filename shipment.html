@@ -8,6 +8,10 @@
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root {
@@ -36,7 +40,7 @@
         }
 
         .header a { color: white; text-decoration: none; margin-left: 15px; }
-        .container { padding: 20px; max-width: 600px; margin: 0 auto; }
+        .container { padding: 20px; max-width: 600px; margin: 0 auto; padding-bottom: 100px; }
 
         .card {
             background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
@@ -57,6 +61,17 @@
         }
         
         select:focus, input:focus { border-color: var(--primary-color); }
+
+        /* تنسيق مخصص لـ Select2 لكي يطابق تصميمك الأنيق */
+        .select2-container--default .select2-selection--single {
+            height: 48px; border: 2px solid #eee; border-radius: 10px; display: flex; align-items: center; outline: none;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 46px; left: 10px; right: auto; /* لضبط السهم جهة اليسار لأن الاتجاه RTL */
+        }
+        .select2-container { width: 100% !important; margin-top: 5px; }
+        .select2-dropdown { border: 2px solid var(--primary-color); border-radius: 10px; z-index: 9999; }
+        .select2-search__field { font-size: 16px !important; } /* تمنع الـ Zoom التلقائي في أجهزة الآيفون */
 
         .calculation-box {
             background: #f8f7ff; padding: 15px; border-radius: 15px;
@@ -102,9 +117,10 @@
         <input type="hidden" id="editKey" value=""> 
         
         <div class="form-group">
-            <label>العميل (بحث):</label>
-            <input list="customersList" id="shipCustomer" placeholder="اكتب اسم العميل للبحث...">
-            <datalist id="customersList"></datalist>
+            <label>العميل (البحث الذكي):</label>
+            <select id="shipCustomer">
+                <option value="">-- ابحث عن العميل هنا --</option>
+            </select>
         </div>
 
         <div class="form-group">
@@ -159,21 +175,30 @@
 
     let allShipments = {};
 
+    // تفعيل الـ Select2 فور جاهزية الصفحة وضبط الاتجاه للغة العربية
+    $(document).ready(function() {
+        $('#shipCustomer').select2({
+            dir: "rtl",
+            placeholder: "-- ابحث عن العميل هنا --",
+            allowClear: true
+        });
+    });
+
     function initLists() {
-        // تحميل العملاء في الـ Datalist للبحث
+        // تحميل العملاء وتحديث الـ Select2
         db.ref('customers').once('value', snap => {
-            const datalist = document.getElementById('customersList');
+            const select = $('#shipCustomer');
             const data = snap.val();
             if(data) {
-                datalist.innerHTML = "";
+                select.empty().append('<option value="">-- ابحث عن العميل هنا --</option>');
                 Object.values(data).forEach(c => {
-                    let option = document.createElement('option');
-                    option.value = c.name;
-                    datalist.appendChild(option);
+                    select.append(new Option(c.name, c.name));
                 });
+                select.trigger('change'); // إشعار Select2 بالتحديث
             }
         });
 
+        // تحميل الشركات
         db.ref('companies').once('value', snap => {
             const select = document.getElementById('shipCompany');
             const data = snap.val();
@@ -198,8 +223,8 @@
     });
 
     function saveShipment() {
-        // سحب الاسم من الـ Input
-        const customer = document.getElementById('shipCustomer').value.trim();
+        // جلب القيمة من Select2 باستخدام jQuery
+        const customer = $('#shipCustomer').val();
         const compSelect = document.getElementById('shipCompany');
         const companyPrice = compSelect.value;
         const companyName = compSelect.options[compSelect.selectedIndex].getAttribute('data-name');
@@ -210,7 +235,7 @@
         const now = new Date();
         const today = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
 
-        if(!customer || companyPrice == "0") return alert("برجاء إدخال اسم العميل واختيار الشركة");
+        if(!customer || companyPrice == "0") return alert("برجاء اختيار العميل والشركة أولاً");
 
         if(editKey) {
             db.ref('shipments/' + editKey).update({
@@ -242,7 +267,9 @@
     function loadForEdit(key) {
         const s = allShipments[key];
         document.getElementById('editKey').value = key;
-        document.getElementById('shipCustomer').value = s.customer;
+        
+        // تحديث قيمة Select2 في وضع التعديل
+        $('#shipCustomer').val(s.customer).trigger('change');
         
         const compSelect = document.getElementById('shipCompany');
         for(let i=0; i<compSelect.options.length; i++) {
@@ -263,7 +290,10 @@
 
     function resetForm() {
         document.getElementById('editKey').value = "";
-        document.getElementById('shipCustomer').value = ""; // تصفير الـ Input
+        
+        // تصفير قائمة Select2 وتحديث شكلها
+        $('#shipCustomer').val('').trigger('change');
+        
         document.getElementById('shipCompany').selectedIndex = 0;
         document.getElementById('pkgCount').value = 1;
         document.getElementById('totalDisplay').innerText = "0";
