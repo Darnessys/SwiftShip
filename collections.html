@@ -11,12 +11,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root { --primary: #00b894; --edit-color: #0984e3; --bg: #f0f2f5; --warning: #e67e22; --danger: #d63031; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 0; padding-bottom: 350px; /* مساحة إضافية ضخمة في الأسفل لكي تسحب الصفحة لفوق براحتك مع الكيبورد */ }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 0; padding-bottom: 250px; /* مساحة مرنة أسفل الصفحة تسمح بسحب الشاشة فوق الكيبورد */ }
         .header { background: var(--primary); color: white; padding: 20px; text-align: center; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .container { padding: 15px; max-width: 800px; margin: 0 auto; }
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; border-top: 4px solid var(--primary); }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; border-top: 4px solid var(--primary); position: relative; }
         
-        /* تعديل الـ inputs لمنع الـ Zoom التلقائي في الموبايل وحل مشكلة الكيبورد */
+        /* تنسيق حقول الإدخال ومنع الزووم التلقائي في الموبايل */
         input, select { 
             width: 100%; 
             padding: 12px; 
@@ -24,13 +24,33 @@
             border: 1px solid #ddd; 
             border-radius: 8px; 
             box-sizing: border-box; 
-            font-size: 16px !important; /* حجم 16 يمنع نظام الـ Android و iOS من عمل Zoom يغطي الشاشة عند فتح الكيبورد */
+            font-size: 16px !important; /* حجم 16 يمنع نظام التشغيل من عمل زووم يخفي الكيبورد */
+            background-color: #ffffff;
+            color: #333333;
         }
         
-        /* تركيز البحث واقتراحات المتصفح */
         input:focus {
             border-color: var(--primary);
             outline: none;
+        }
+
+        /* 🛠️ حل مشكلة شفافية قائمة الأسماء (datalist) عند الصعود للأعلى 🛠️ */
+        input::-webkit-calendar-picker-indicator {
+            opacity: 100; /* إبقاء مؤشر السهم ظاهراً وجاهزاً */
+        }
+        
+        /* إجبار أجهزة الأندرويد والآيفون على تلوين خلفية الخيارات بلون مصمت ومنع الشفافية */
+        datalist {
+            background-color: #ffffff !important;
+            color: #333333 !important;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        option {
+            background-color: #ffffff !important;
+            color: #333333 !important;
+            padding: 10px;
         }
         
         #mainBtn { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 17px; transition: 0.3s; }
@@ -161,10 +181,8 @@
         
         pendingCount.innerText = pendingList.length;
         pendingContainer.innerHTML = pendingList.length === 0 ? "<p style='color:green'>✅ تم تحصيل الكل!</p>" : "";
-        allCustomers.forEach(c => {
-            if (!collectedNames.includes(c.name)) {
-                pendingContainer.innerHTML += `<div class="pending-item"><span>${c.name}</span><small>(لم يدفع)</small></div>`;
-            }
+        pendingList.forEach(c => {
+            pendingContainer.innerHTML += `<div class="pending-item"><span>${c.name}</span><small>(لم يدفع)</small></div>`;
         });
 
         const tbody = document.getElementById('collectionsTable');
@@ -236,7 +254,7 @@
     }
 
     function resetTrip() {
-        if(confirm("تنبيه: سيتم مسح كافة تحصيلات هذه الرحلة لتصفير الدفتر. هل أنت متأكد؟")) {
+        if(confirm("تنبيه: سيتم مسح كافة تحصيلات هذه الرحلة لتصفير الدفتر. هل أنت متأكد？")) {
             db.ref('collections').remove();
         }
     }
