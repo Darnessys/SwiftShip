@@ -8,50 +8,18 @@
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root { --primary: #00b894; --edit-color: #0984e3; --bg: #f0f2f5; --warning: #e67e22; --danger: #d63031; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 0; padding-bottom: 250px; /* مساحة مرنة أسفل الصفحة تسمح بسحب الشاشة فوق الكيبورد */ }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 0; padding-bottom: 40px; }
         .header { background: var(--primary); color: white; padding: 20px; text-align: center; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .container { padding: 15px; max-width: 800px; margin: 0 auto; }
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; border-top: 4px solid var(--primary); position: relative; }
-        
-        /* تنسيق حقول الإدخال ومنع الزووم التلقائي في الموبايل */
-        input, select { 
-            width: 100%; 
-            padding: 12px; 
-            margin: 10px 0; 
-            border: 1px solid #ddd; 
-            border-radius: 8px; 
-            box-sizing: border-box; 
-            font-size: 16px !important; /* حجم 16 يمنع نظام التشغيل من عمل زووم يخفي الكيبورد */
-            background-color: #ffffff;
-            color: #333333;
-        }
-        
-        input:focus {
-            border-color: var(--primary);
-            outline: none;
-        }
-
-        /* 🛠️ حل مشكلة شفافية قائمة الأسماء (datalist) عند الصعود للأعلى 🛠️ */
-        input::-webkit-calendar-picker-indicator {
-            opacity: 100; /* إبقاء مؤشر السهم ظاهراً وجاهزاً */
-        }
-        
-        /* إجبار أجهزة الأندرويد والآيفون على تلوين خلفية الخيارات بلون مصمت ومنع الشفافية */
-        datalist {
-            background-color: #ffffff !important;
-            color: #333333 !important;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-
-        option {
-            background-color: #ffffff !important;
-            color: #333333 !important;
-            padding: 10px;
-        }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; border-top: 4px solid var(--primary); }
+        input, select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
         
         #mainBtn { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 17px; transition: 0.3s; }
         .reset-btn { width: 100%; padding: 10px; background: var(--warning); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; font-size: 14px; }
@@ -70,6 +38,19 @@
         .btn-edit { color: var(--edit-color); margin-left: 15px; }
         .btn-delete { color: #e74c3c; }
         
+        /* ضبط تنسيق Select2 المصمت لمنع الشفافية تماماً والانسدال للي فوق أو تحت بأمان */
+        .select2-container--default .select2-selection--single {
+            height: 46px; border: 1px solid #ddd; border-radius: 8px; display: flex; align-items: center; margin: 10px 0; background: #fff !important;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 44px; left: 10px; right: auto;
+        }
+        .select2-container { width: 100% !important; }
+        .select2-dropdown { background-color: #ffffff !important; border: 2px solid var(--primary); border-radius: 8px; z-index: 9999; box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
+        .select2-search__field { font-size: 16px !important; padding: 8px !important; }
+        .select2-results__option { background-color: #ffffff !important; color: #333 !important; }
+        .select2-container--default .select2-results__option--highlighted[aria-selected] { background-color: var(--primary) !important; color: white !important; }
+
         /* تحسين للموبايل */
         @media (max-width: 600px) {
             th, td { padding: 8px; font-size: 13px; }
@@ -85,8 +66,9 @@
 <div class="container">
     <div class="card">
         <label id="formLabel">تسجيل مبلغ محصل جديد:</label>
-        <input list="customersList" id="collectCustomer" placeholder="ابحث عن اسم العميل (✅ حصل / ❌ لسه)" autocomplete="off">
-        <datalist id="customersList"></datalist>
+        <select id="collectCustomer">
+            <option value="">-- ابحث عن اسم العميل (✅ حصل / ❌ لسه) --</option>
+        </select>
         
         <input type="number" id="collectAmount" placeholder="المبلغ المحصل (ج.م)">
         <input type="date" id="collectDate">
@@ -95,7 +77,9 @@
 
     <div class="card" style="padding: 15px;">
         <label><i class="fas fa-filter"></i> مراجعة سريعة:</label>
-        <input list="customersList" id="filterCustomer" oninput="renderAll()" placeholder="ابحث لمراجعة عميل معين..." autocomplete="off">
+        <select id="filterCustomer" onchange="renderAll()">
+            <option value="">-- اختر عميل معين للمراجعة أو استعرض الكل --</option>
+        </select>
         
         <div class="total-info">
             <span>إجمالي المحصل:</span>
@@ -145,12 +129,30 @@
     let allCollections = [];
     let editModeId = null;
 
+    // تشغيل الـ Select2 بشكل احترافي مع ميزة اختيار اتجاه فتح القائمة تلقائياً (تفتح فوق لو مفيش مساحة تحت)
+    $(document).ready(function() {
+        $('#collectCustomer').select2({
+            dir: "rtl",
+            placeholder: "-- ابحث عن اسم العميل (✅ حصل / ❌ لسه) --",
+            allowClear: true,
+            dropdownParent: $('.container') // لضمان ثبات التنسيق داخل كارت الموبايل
+        });
+
+        $('#filterCustomer').select2({
+            dir: "rtl",
+            placeholder: "-- اختر عميل معين للمراجعة أو استعرض الكل --",
+            allowClear: true
+        });
+    });
+
     function init() {
         document.getElementById('collectDate').valueAsDate = new Date();
 
+        // سحب العملاء مرة واحدة وتحديث القوائم منعاً للـ الـ Loop والبطء
         db.ref('customers').on('value', (snapshot) => {
             allCustomers = [];
             snapshot.forEach(child => { allCustomers.push(child.val()); });
+            updateCustomerSelects(); 
             renderAll();
         });
 
@@ -159,37 +161,61 @@
             snapshot.forEach(child => {
                 allCollections.push({ id: child.key, ...child.val() });
             });
+            updateCustomerSelects();
             renderAll();
         });
     }
 
-    function renderAll() {
-        const dl = document.getElementById('customersList');
-        const collectedNames = allCollections.map(c => c.customer);
-        const filterText = document.getElementById('filterCustomer').value.replace(' ✅', '').replace(' ❌', '').trim();
+    // الدالة الذكية المسؤولة عن دمج الـ ✅ والـ ❌ وتحديث الكومبو بوكس بدون تهنيج الصفحة
+    function updateCustomerSelects() {
+        const collectSelect = $('#collectCustomer');
+        const filterSelect = $('#filterCustomer');
+        
+        const savedCollectVal = collectSelect.val();
+        const savedFilterVal = filterSelect.val();
 
-        dl.innerHTML = "";
+        const collectedNames = allCollections.map(c => c.customer);
+
+        collectSelect.empty().append('<option value="">-- ابحث عن اسم العميل (✅ حصل / ❌ لسه) --</option>');
+        filterSelect.empty().append('<option value="">-- اختر عميل معين للمراجعة أو استعرض الكل --</option>');
+
         allCustomers.forEach(c => {
-            let option = document.createElement('option');
-            option.value = collectedNames.includes(c.name) ? c.name + " ✅" : c.name + " ❌";
-            dl.appendChild(option);
+            const statusIcon = collectedNames.includes(c.name) ? " ✅" : " ❌";
+            const finalName = c.name + statusIcon;
+            
+            // القيمة البرمجية المرسلة للـ Firebase هي الاسم الصافي (c.name)، والعرض للمستخدم بالـ إيموجي
+            collectSelect.append(new Option(finalName, c.name));
+            filterSelect.append(new Option(finalName, c.name));
         });
 
+        if(savedCollectVal) collectSelect.val(savedCollectVal);
+        if(savedFilterVal) filterSelect.val(savedFilterVal);
+
+        collectSelect.trigger('change.select2');
+        filterSelect.trigger('change.select2');
+    }
+
+    function renderAll() {
+        const collectedNames = allCollections.map(c => c.customer);
+        const filterText = $('#filterCustomer').val() || "";
+
+        // تحديث قائمة المتبقيين
         const pendingContainer = document.getElementById('pendingContainer');
         const pendingCount = document.getElementById('pendingCount');
         const pendingList = allCustomers.filter(c => !collectedNames.includes(c.name));
         
         pendingCount.innerText = pendingList.length;
-        pendingContainer.innerHTML = pendingList.length === 0 ? "<p style='color:green'>✅ تم تحصيل الكل!</p>" : "";
+        pendingContainer.innerHTML = pendingList.length === 0 ? "<p style='color:green; font-weight:bold;'>✅ تم تحصيل الكل!</p>" : "";
         pendingList.forEach(c => {
             pendingContainer.innerHTML += `<div class="pending-item"><span>${c.name}</span><small>(لم يدفع)</small></div>`;
         });
 
+        // تحديث جدول العمليات والإجمالي
         const tbody = document.getElementById('collectionsTable');
         let total = 0;
         tbody.innerHTML = "";
 
-        const displayData = filterText === "" ? allCollections : allCollections.filter(c => c.customer.includes(filterText));
+        const displayData = filterText === "" ? allCollections : allCollections.filter(c => c.customer === filterText);
 
         [...displayData].reverse().forEach(c => {
             total += parseFloat(c.amount);
@@ -209,8 +235,7 @@
     }
 
     function saveCollection() {
-        let customerInput = document.getElementById('collectCustomer').value;
-        const customer = customerInput.replace(' ✅', '').replace(' ❌', '').trim();
+        const customer = $('#collectCustomer').val();
         const amount = document.getElementById('collectAmount').value;
         const date = document.getElementById('collectDate').value;
 
@@ -223,22 +248,24 @@
                 editModeId = null;
                 document.getElementById('mainBtn').innerText = "حفظ في السحابة";
                 document.getElementById('mainBtn').style.background = "var(--primary)";
+                $('#collectCustomer').val('').trigger('change');
             });
         } else {
             db.ref('collections').push({
                 customer, amount: parseFloat(amount), date
+            }).then(() => {
+                $('#collectCustomer').val('').trigger('change');
             });
         }
 
         document.getElementById('collectAmount').value = "";
-        document.getElementById('collectCustomer').value = "";
     }
 
     function startEdit(id) {
         const item = allCollections.find(c => c.id === id);
         if (item) {
             editModeId = id;
-            document.getElementById('collectCustomer').value = item.customer;
+            $('#collectCustomer').val(item.customer).trigger('change');
             document.getElementById('collectAmount').value = item.amount;
             document.getElementById('collectDate').value = item.date;
             document.getElementById('mainBtn').innerText = "تحديث البيانات";
@@ -254,7 +281,7 @@
     }
 
     function resetTrip() {
-        if(confirm("تنبيه: سيتم مسح كافة تحصيلات هذه الرحلة لتصفير الدفتر. هل أنت متأكد？")) {
+        if(confirm("تنبيه: سيتم مسح كافة تحصيلات هذه الرحلة لتصفير الدفتر. هل أنت متأكد؟")) {
             db.ref('collections').remove();
         }
     }
