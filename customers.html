@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إدارة العملاء | SwiftShip</title>
+    <title>إدارة العملاء | CashUp</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
@@ -52,9 +53,24 @@
         input {
             width: 100%; padding: 14px; border: 1px solid #ddd;
             border-radius: 12px; box-sizing: border-box; outline: none; font-size: 1rem;
+            color: #2d3436;
         }
 
         input:focus { border-color: var(--primary); box-shadow: 0 0 8px rgba(108,92,231,0.2); }
+
+        .search-box-container {
+            position: relative; margin-bottom: 15px;
+        }
+        .search-box-container input {
+            padding-right: 45px; border: 2px solid #eee; background: white; font-weight: 500;
+        }
+        .search-box-container input:focus {
+            border-color: var(--primary);
+        }
+        .search-box-container i {
+            position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
+            color: #b2bec3; font-size: 1.1rem;
+        }
 
         .btn-save {
             background: var(--header-grad); color: white; border: none;
@@ -64,7 +80,7 @@
 
         .btn-update { background: linear-gradient(135deg, #0984e3, #74b9ff); display: none; }
 
-        h3 { color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.2); margin-top: 20px; }
+        h3 { color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.2); margin-top: 20px; margin-bottom: 10px; }
 
         .customer-list {
             width: 100%; background: white; border-radius: 20px;
@@ -72,6 +88,7 @@
         }
 
         .customer-list td { padding: 15px; border-bottom: 1px solid #eee; }
+        .customer-list tr:last-child td { border-bottom: none; }
 
         .cust-info { display: flex; justify-content: space-between; align-items: center; }
         .id-badge { background: #f1f0ff; color: var(--primary); padding: 2px 8px; border-radius: 6px; font-weight: bold; font-size: 0.8rem; }
@@ -86,13 +103,14 @@
 <body>
 
     <div class="header">
-        <a href="index.html"><i class="fas fa-arrow-right"></i></a>
-        <h2 style="margin:0; font-size:1.3rem;">إدارة العملاء العابرة للحدود 🌍</h2>
+        <a href="dashboard.html"><i class="fas fa-arrow-right"></i></a>
+        <h2 style="margin:0; font-size:1.3rem;">إدارة العملاء 🌍 <span id="companyBadge" style="font-size: 11px; background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 8px; vertical-align: middle;">⚙️ جاري الفحص...</span></h2>
     </div>
 
     <div class="container">
         <div class="card">
-            <input type="hidden" id="editKey"> <div class="form-group">
+            <input type="hidden" id="editKey"> 
+            <div class="form-group">
                 <label>اسم العميل:</label>
                 <input type="text" id="custName" placeholder="الاسم ثلاثي">
             </div>
@@ -106,12 +124,20 @@
         </div>
 
         <h3>العملاء المسجلين (Live)</h3>
+        
+        <div class="search-box-container">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" onkeyup="searchCustomers()" placeholder="ابحث بسرعة باسم العميل أو رقم الهاتف...">
+        </div>
+
         <table class="customer-list">
             <tbody id="customerBody">
-                <tr><td style="text-align:center;">جاري تحميل البيانات...</td></tr>
+                <tr><td style="text-align:center; padding:20px;">جاري التحقق من الصلاحيات وجلب البيانات...</td></tr>
             </tbody>
         </table>
     </div>
+
+    <div id="toast" style="display:none; position:fixed; bottom:20px; left:20px; background:#6c5ce7; color:white; padding:15px 25px; border-radius:12px; font-weight:bold; box-shadow:0 8px 24px rgba(0,0,0,0.2); z-index:9999; direction:rtl; min-width:260px; text-align:center; font-family:'Segoe UI', sans-serif;"></div>
 
     <script>
         const firebaseConfig = {
@@ -123,95 +149,185 @@
             messagingSenderId: "410866251849",
             appId: "1:410866251849:web:4c606d59d83c2c2756a798"
         };
-
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+        const auth = firebase.auth();
 
-        let allCustomers = {}; // لتخزين البيانات محلياً للمقارنة ومنع التكرار
+        let currentCompanyId = "";
+        let allCustomers = {}; 
 
-        // عرض البيانات
-        db.ref('customers').on('value', (snapshot) => {
-            const tbody = document.getElementById('customerBody');
-            allCustomers = snapshot.val() || {};
-            
-            if (Object.keys(allCustomers).length === 0) {
-                tbody.innerHTML = '<tr><td style="text-align:center; padding:20px; color:#636e72;">لا يوجد عملاء حالياً</td></tr>';
-                return;
+        function showNotification(message, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.innerText = message;
+            toast.style.background = isError ? '#d63031' : '#6c5ce7';
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 2500);
+        }
+
+        // حارس بوابة الأمان المطور - تم تحويله بالكامل إلى .on للبث الحي التلقائي الفوري لمنع تعليق الداتا
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                currentCompanyId = user.email.split('@')[0].toLowerCase().replace(/[^a-zA-Z0-9_]/g, "");
+                
+                // تحويل لـ .on لمراقبة حالة مفتاح التفعيل فورًا وتفادي مشكلة الـ Refresh
+                db.ref('companies/' + currentCompanyId + '/active_key').on('value', snap => {
+                    const isActive = snap.val();
+                    
+                    if (isActive === true || isActive === "active") {
+                        document.getElementById('companyBadge').innerText = "سيرفر: " + currentCompanyId.toUpperCase();
+                        listenToCustomers(); // جلب البيانات والمزامنة الحية فورًا
+                    } else {
+                        showNotification("عذراً، الحساب غير مفعل حالياً ومحجوب عن الصلاحيات السحابية! 🔒", true);
+                        setTimeout(() => { window.location.href = "pending.html"; }, 2000);
+                    }
+                });
+            } else {
+                window.location.href = "index.html";
             }
+        });
 
+        function listenToCustomers() {
+            db.ref('companies/' + currentCompanyId + '/customers').on('value', (snapshot) => {
+                const tbody = document.getElementById('customerBody');
+                allCustomers = snapshot.val() || {};
+                
+                if (Object.keys(allCustomers).length === 0) {
+                    tbody.innerHTML = '<tr><td style="text-align:center; padding:20px; color:#636e72;">لا يوجد عملاء مسجلين لهذه الشركة حالياً</td></tr>';
+                    return;
+                }
+
+                renderTable(allCustomers);
+                searchCustomers();
+            });
+        }
+
+        function renderTable(customersData) {
+            const tbody = document.getElementById('customerBody');
             let rows = '';
-            Object.keys(allCustomers).forEach((key) => {
-                const c = allCustomers[key];
+            
+            Object.keys(customersData).forEach((key) => {
+                const c = customersData[key];
+                const displayId = c.id ? c.id : "---";
+                const displayPhone = c.phone ? c.phone : "بدون هاتف";
+                
                 rows += `
-                <tr>
+                <tr class="customer-row">
                     <td>
                         <div class="cust-info">
                             <div>
-                                <span class="id-badge">ID: #${c.id}</span>
-                                <div style="margin-top:5px;"><b>${c.name}</b></div>
-                                <div style="color:gray; font-size:0.9rem;">${c.phone}</div>
+                                <div>
+                                    <span class="id-badge">ID: #${displayId}</span>
+                                    <div style="margin-top:5px;" class="search-name"><b>${c.name}</b></div>
+                                    <div style="color:gray; font-size:0.9rem;" class="search-phone">${displayPhone}</div>
+                                </div>
                             </div>
                             <div class="actions">
-                                <button onclick="prepareEdit('${key}')" class="btn-action btn-edit"><i class="fas fa-edit"></i></button>
-                                <button onclick="deleteCustomer('${key}')" class="btn-action btn-delete"><i class="fas fa-trash-alt"></i></button>
+                                <button onclick="prepareEdit('${key}')" class="btn-action btn-edit" title="تعديل"><i class="fas fa-edit"></i></button>
+                                <button onclick="confirmDelete('${key}')" class="btn-action btn-delete" title="حذف"><i class="fas fa-trash-alt"></i></button>
                             </div>
                         </div>
                     </td>
                 </tr>`;
             });
+            
             tbody.innerHTML = rows;
-        });
+        }
 
-        // إضافة عميل جديد مع منع التكرار
+        function searchCustomers() {
+            const filter = document.getElementById('searchInput').value.toLowerCase().trim();
+            const rows = document.getElementsByClassName('customer-row');
+
+            for (let i = 0; i < rows.length; i++) {
+                const nameElement = rows[i].querySelector('.search-name');
+                const phoneElement = rows[i].querySelector('.search-phone');
+                
+                if(!nameElement || !phoneElement) continue;
+
+                const nameText = nameElement.innerText.toLowerCase();
+                const phoneText = phoneElement.innerText.toLowerCase();
+
+                if (nameText.includes(filter) || phoneText.includes(filter)) {
+                    rows[i].style.display = "";
+                } else {
+                    rows[i].style.display = "none";
+                }
+            }
+        }
+
         function addCustomer() {
             const name = document.getElementById('custName').value.trim();
             const phone = document.getElementById('custPhone').value.trim();
             
-            if(!name || !phone) return alert("برجاء إدخال البيانات كاملة");
+            if(!name || !phone) return showNotification("برجاء إدخال اسم العميل ورقم الهاتف بالكامل.", true);
 
-            // منع التكرار
-            const isDuplicate = Object.values(allCustomers).some(c => c.name === name || c.phone === phone);
-            if(isDuplicate) return alert("خطأ: هذا العميل أو رقم الهاتف مسجل بالفعل!");
+            const isDuplicate = Object.values(allCustomers).some(c => {
+                return (c.name && c.name === name) || (c.phone && c.phone === phone);
+            });
+            
+            if(isDuplicate) return showNotification("خطأ: هذا العميل أو رقم الهاتف مسجل بالفعل لدى شركتكم!", true);
 
             const saveBtn = document.getElementById('saveBtn');
             saveBtn.disabled = true;
 
-            db.ref('customers').limitToLast(1).once('value', (snapshot) => {
-                let newId = 1;
-                const lastData = snapshot.val();
-                if (lastData) {
-                    const lastKey = Object.keys(lastData)[0];
-                    newId = parseInt(lastData[lastKey].id) + 1;
+            let maxId = 0;
+            Object.values(allCustomers).forEach(c => {
+                if (c.id && !isNaN(parseInt(c.id))) {
+                    if (parseInt(c.id) > maxId) { maxId = parseInt(c.id); }
                 }
+            });
+            const newId = maxId + 1;
 
-                db.ref('customers').push({ id: newId, name, phone, createdAt: new Date().toISOString() })
-                .then(() => { resetForm(); saveBtn.disabled = false; });
+            db.ref('companies/' + currentCompanyId + '/customers').push({ 
+                id: newId, 
+                name, 
+                phone, 
+                createdAt: new Date().toISOString() 
+            })
+            .then(() => { 
+                showNotification("تم حفظ العميل الجديد بنجاح سحابياً! 🎉");
+                resetForm(); 
+                saveBtn.disabled = false; 
+                document.getElementById('searchInput').value = "";
+            })
+            .catch((error) => {
+                saveBtn.disabled = false;
+                showNotification("فشل الحفظ في السيرفر! السبب: " + error.message, true);
             });
         }
 
-        // تجهيز التعديل
         function prepareEdit(key) {
             const customer = allCustomers[key];
             document.getElementById('custName').value = customer.name;
-            document.getElementById('custPhone').value = customer.phone;
+            document.getElementById('custPhone').value = customer.phone ? customer.phone : "";
             document.getElementById('editKey').value = key;
 
             document.getElementById('saveBtn').style.display = 'none';
             document.getElementById('updateBtn').style.display = 'block';
             document.getElementById('cancelBtn').style.display = 'block';
-            window.scrollTo(0,0);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // تنفيذ التحديث
         function updateCustomer() {
             const key = document.getElementById('editKey').value;
             const name = document.getElementById('custName').value.trim();
             const phone = document.getElementById('custPhone').value.trim();
 
-            if(!name || !phone) return alert("الخانات لا يمكن أن تكون فارغة");
+            if(!name || !phone) return showNotification("الخانات لا يمكن أن تكون فارغة أثناء التعديل.", true);
 
-            db.ref('customers/' + key).update({ name, phone })
-            .then(() => { alert("تم تحديث البيانات"); resetForm(); });
+            const isDuplicate = Object.keys(allCustomers).some(k => {
+                if(k === key) return false; 
+                const c = allCustomers[k];
+                return (c.name && c.name === name) || (c.phone && c.phone === phone);
+            });
+
+            if(isDuplicate) return showNotification("خطأ: الاسم أو رقم الهاتف مسجل لعميل آخر بالفعل!", true);
+
+            db.ref('companies/' + currentCompanyId + '/customers/' + key).update({ name, phone })
+            .then(() => { 
+                showNotification("تم تحديث بيانات العميل بنجاح 🔄"); 
+                resetForm(); 
+            })
+            .catch(err => showNotification("فشل التحديث: " + err.message, true));
         }
 
         function resetForm() {
@@ -223,9 +339,28 @@
             document.getElementById('cancelBtn').style.display = 'none';
         }
 
-        function deleteCustomer(key) {
-            if(!confirm("حذف العميل؟")) return;
-            db.ref('customers/' + key).remove();
+        function confirmDelete(key) {
+            const customerName = allCustomers[key] ? allCustomers[key].name : "هذا العميل";
+            const toast = document.getElementById('toast');
+            
+            toast.innerHTML = `
+                <div style="margin-bottom: 10px;">هل أنت متأكد من حذف العميل: <b style="color:#ffea00;">${customerName}</b>؟</div>
+                <div style="display:flex; gap:10px; justify-content:center;">
+                    <button onclick="executeDelete('${key}')" style="background:#d63031; color:white; border:none; padding:5px 15px; border-radius:5px; cursor:pointer; font-weight:bold;">نعم، احذف</button>
+                    <button onclick="document.getElementById('toast').style.display='none'" style="background:#636e72; color:white; border:none; padding:5px 15px; border-radius:5px; cursor:pointer; font-weight:bold;">إلغاء</button>
+                </div>
+            `;
+            toast.style.background = '#2d3436';
+            toast.style.display = 'block';
+        }
+
+        function executeDelete(key) {
+            document.getElementById('toast').style.display = 'none';
+            db.ref('companies/' + currentCompanyId + '/customers/' + key).remove()
+            .then(() => {
+                showNotification("تم حذف العميل بنجاح من قاعدة البيانات.");
+            })
+            .catch(err => showNotification("فشل الحذف: " + err.message, true));
         }
     </script>
 </body>
