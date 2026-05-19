@@ -2,177 +2,54 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SwiftShip | Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>بوابة CashUp - الدخول والتسجيل بمفتاح التفعيل</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
     <style>
-        :root {
-            --primary: #6c5ce7;
-            --accent: #00b894;
-            --dark: #2d3436;
-            --glass: rgba(255, 255, 255, 0.85);
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0; padding: 0;
-            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
-            background-size: 400% 400%;
-            animation: gradientBG 15s ease infinite;
-            min-height: 100vh;
-            display: flex; flex-direction: column; color: var(--dark);
-        }
-
-        @keyframes gradientBG {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-
-        /* --- البانر المبتكر الجديد --- */
-        header {
-            padding: 30px 10px;
-            display: flex;
-            justify-content: center;
-        }
-
-        .header-card {
-            background: rgba(255, 255, 255, 0.25);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 30px;
-            padding: 20px 40px;
-            text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            animation: float 4s ease-in-out infinite;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-
-        .header-card h1 {
-            font-size: 2.2rem; margin: 0; font-weight: 900;
-            color: white; text-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            display: flex; align-items: center; gap: 15px; justify-content: center;
-        }
-
-        .header-card h1 i { font-size: 1.8rem; color: #fff; }
-
-        .header-card p {
-            color: white; font-weight: 300; margin: 5px 0 0;
-            font-size: 0.9rem; opacity: 0.9;
-        }
-
-        .status-pill {
-            background: rgba(255, 255, 255, 0.2);
-            color: white; padding: 4px 12px; border-radius: 20px;
-            font-size: 0.75rem; display: inline-block; margin-top: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-
-        /* --- باقي التنسيقات كما هي --- */
-        .container {
-            padding: 10px 20px 40px;
-            max-width: 800px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 20px; width: 90%;
-        }
-
-        .menu-card {
-            background: var(--glass);
-            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.3);
-            border-radius: 25px; padding: 25px 15px;
-            text-align: center; text-decoration: none; color: var(--dark);
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.05);
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-        }
-
-        .menu-card:hover { transform: translateY(-8px); background: white; box-shadow: 0 15px 45px rgba(0,0,0,0.1); }
-
-        .menu-card i {
-            font-size: 2.5rem;
-            margin-bottom: 15px;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            
-            /* السطرين دول مع بعض عشان التوافقية */
-            -webkit-background-clip: text; 
-            background-clip: text; 
-            
-            -webkit-text-fill-color: transparent;
-        }
-
-        .menu-card span { font-weight: 700; font-size: 0.95rem; }
-
-        .card-cust i { background: linear-gradient(135deg, #6c5ce7, #a29bfe); -webkit-background-clip: text; }
-        .card-ship i { background: linear-gradient(135deg, #0984e3, #74b9ff); -webkit-background-clip: text; }
-        .card-coll i { background: linear-gradient(135deg, #00b894, #55efc4); -webkit-background-clip: text; }
-        .card-comp i { background: linear-gradient(135deg, #e67e22, #fab1a0); -webkit-background-clip: text; }
-
-        .footer { margin-top: auto; text-align: center; padding: 20px; color: white; font-size: 0.8rem; opacity: 0.7; }
-
-        @media (max-width: 480px) {
-            .container { grid-template-columns: repeat(2, 1fr); gap: 15px; }
-            .header-card { padding: 15px 25px; width: 80%; }
-            .header-card h1 { font-size: 1.6rem; }
-        }
+        :root { --accent: #00b894; --link: #0984e3; --bg: #1e272e; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 0; display: flex; align-items: center; justify-content: center; height: 100vh; width: 100vw; box-sizing: border-box; }
+        
+        .gateway-card { background: white; padding: 35px 25px; border-radius: 20px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.5); border-top: 6px solid var(--accent); margin: 20px; }
+        .gateway-card input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 15px; background: #f8f9fa; text-align: right; }
+        .gateway-card button { width: 100%; padding: 14px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 17px; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+        .switch-link { color: var(--link); cursor: pointer; display: inline-block; margin-top: 15px; font-size: 14px; font-weight: bold; text-decoration: underline; }
+        
+        #registerForm { display: none; }
     </style>
 </head>
 <body>
 
-<header>
-    <div class="header-card">
-        <h1><i class="fas fa-paper-plane"></i>SwiftShip</h1>
-        <p>نظام الشحن والتحصيلات</p>
-        <div id="connection-status" class="status-pill">جاري المزامنة...</div>
-    </div>
-</header>
-
-<div class="container">
-    <a href="customers.html" class="menu-card card-cust">
-        <i class="fas fa-users-cog"></i>
-        <span>تسجيل العملاء</span>
-    </a>
+<div class="gateway-card">
+    <i class="fas fa-shield-alt" style="font-size: 3.5rem; color: var(--accent); margin-bottom: 15px;"></i>
+    <h2 style="margin:0 0 5px 0; color:#2c3e50;">سيستم CashUp</h2>
     
-   <a href="companies.html" class="menu-card card-comp">
-        <i class="fas fa-truck-loading"></i>
-        <span>تسجيل الشركات</span>
-    </a>
+    <div id="loginForm">
+        <p style="color: #7f8c8d; font-size: 14px; margin-bottom: 20px;">تسجيل دخول Companies والمناديب</p>
+        <input type="email" id="loginEmail" placeholder="البريد الإلكتروني للشركة">
+        <input type="password" id="loginPassword" placeholder="كلمة المرور">
+        <button onclick="checkLogin()">دخول التطبيق 🔓</button>
+        <br>
+        <span class="switch-link" onclick="toggleForms(true)">إنشاء حساب شركة جديدة (مفتاح التفعيل) ←</span>
+    </div>
 
-    <a href="shipment.html" class="menu-card card-ship">
-        <i class="fas fa-box-open"></i>
-        <span>شحنة جديدة</span>
-    </a>
-
-    <a href="reports.html" class="menu-card">
-        <i class="fas fa-chart-line" style="background: linear-gradient(135deg, #d63031, #ff7675); -webkit-background-clip: text;"></i>
-        <span>سداد الشحن</span>
-    </a>
-
-    <a href="customer-report.html" class="menu-card">
-        <i class="fas fa-file-invoice" style="background: linear-gradient(135deg, #2d3436, #636e72); -webkit-background-clip: text;"></i>
-        <span>حساب العميل</span>
-    </a>
-
-    <a href="collections.html" class="menu-card card-coll">
-        <i class="fas fa-wallet"></i>
-        <span>تحصيلات العملاء</span>
-    </a>
+    <div id="registerForm">
+        <p style="color: #e67e22; font-size: 14px; margin-bottom: 20px; font-weight: bold;">تفعيل سيرفر سحابي لشركة جديدة</p>
+        <input type="email" id="regEmail" placeholder="البريد الإلكتروني للشركة">
+        <input type="password" id="regPassword" placeholder="اختر كلمة مرور للحساب">
+        <input type="text" id="regActivationKey" placeholder="أدخل مفتاح التفعيل (Activation Key)">
+        <button style="background: var(--link);" onclick="handleRegister()">تحقق وتفعيل الحساب سحابياً 🚀</button>
+        <br>
+        <span class="switch-link" style="color:#555;" onclick="toggleForms(false)">لديك حساب بالفعل؟ تسجيل دخول</span>
+    </div>
 </div>
 
-<div class="footer">
-    SwiftShip &copy; 2026 | السرعة والأمان في مكان واحد
-</div>
+<div id="toast" style="display:none; position:fixed; bottom:20px; left:20px; background:#00b894; color:white; padding:15px 25px; border-radius:8px; font-weight:bold; box-shadow:0 4px 12px rgba(0,0,0,0.2); z-index:9999; direction:rtl; min-width:200px; text-align:center; font-family:'Segoe UI', sans-serif;"></div>
 
 <script>
     const firebaseConfig = {
@@ -186,17 +63,91 @@
     };
 
     firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
     const db = firebase.database();
 
-    db.ref(".info/connected").on("value", (snap) => {
-        const status = document.getElementById('connection-status');
-        if (snap.val() === true) {
-            status.innerHTML = '<i class="fas fa-circle" style="color: #00ff00; font-size: 8px;"></i> أونلاين';
-        } else {
-            status.innerHTML = '<i class="fas fa-circle" style="color: #ff0000; font-size: 8px;"></i> أوفلاين';
+    function showNotification(message, isError = false) {
+        const toast = document.getElementById('toast');
+        toast.innerText = message;
+        toast.style.background = isError ? '#e74c3c' : '#00b894'; 
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; }, 2500);
+    }
+
+    // فحص الجلسة النشطة والتوجيه التلقائي لـ dashboard
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            window.location.href = "dashboard.html";
         }
     });
-</script>
 
+    function toggleForms(showRegister) {
+        document.getElementById('loginForm').style.display = showRegister ? 'none' : 'block';
+        document.getElementById('registerForm').style.display = showRegister ? 'block' : 'none';
+    }
+
+    // [أ] كود تسجيل الدخول
+    function checkLogin() {
+        const email = document.getElementById('loginEmail').value.trim();
+        const pass = document.getElementById('loginPassword').value;
+        if(!email || !pass) return showNotification("برجاء إدخال البريد الإلكتروني وكلمة المرور", true);
+        
+        auth.signInWithEmailAndPassword(email, pass)
+            .catch(err => showNotification("خطأ: بيانات المرور غير صحيحة أو السيرفر غير مستجيب.", true));
+    }
+
+    // [ب] كود إنشاء الحساب والتحقق من مفتاح التفعيل
+    function handleRegister() {
+        const email = document.getElementById('regEmail').value.trim();
+        const pass = document.getElementById('regPassword').value;
+        const actKey = document.getElementById('regActivationKey').value.trim();
+
+        if(!email || !pass || !actKey) return showNotification("برجاء ملء كافة البيانات المطلوبة بالتفصيل", true);
+        
+        const companyId = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, "").toLowerCase();
+        if(!companyId) return showNotification("البريد الإلكتروني غير صالح لاستخراج معرف الشركة", true);
+
+        // 1️⃣ خطوة الفحص المالي والأمني لمفتاح التفعيل في السيرفر
+        db.ref('activation_keys/' + actKey).once('value', (snapshot) => {
+            if(!snapshot.exists()) {
+                return showNotification("عذراً! كود التفعيل هذا غير مدرج في السيستم لدينا.", true);
+            }
+            
+            const keyData = snapshot.val();
+            if(keyData.status === "used") {
+                return showNotification("تنبيه أمني: كود التفعيل هذا تم استخدامه مسبقاً لتفعيل شركة أخرى!", true);
+            }
+
+            // 2️⃣ خطوة الإنشاء: تسجيل حساب التاجر رسمياً في مصادقة فايربيس
+            auth.createUserWithEmailAndPassword(email, pass)
+            .then((userCredential) => {
+                
+                // 3️⃣ خطوة إبطال الكود لمنع استخدامه مجدداً وربطه ماليًا ببيانات الشركة المسجلة
+                db.ref('activation_keys/' + actKey).update({
+                    status: "used",
+                    used_by_email: email,
+                    company_folder: companyId,
+                    activated_at: new Date().toISOString()
+                });
+
+                // 4️⃣ خطوة تأسيس البنية المعزولة ورفع الـ active_key في المسار الصحيح المتوافق مع جدار حماية الصفحات
+                db.ref('companies/' + companyId).set({
+                    active_key: true, // تفعيل فوري متوافق مع الحارس السحابي للأقسام المتبقية
+                    info: {
+                        company_id: companyId,
+                        email: email,
+                        status: "active",
+                        activated_at: new Date().toLocaleString()
+                    }
+                }).then(() => {
+                    showNotification("ممتاز! تم تفعيل سيرفر شركتك بنجاح، جاري التحويل...");
+                    setTimeout(() => { window.location.href = "dashboard.html"; }, 1500);
+                });
+
+            })
+            .catch(err => showNotification("فشل إنشاء الحساب: " + err.message, true));
+        });
+    }
+</script>
 </body>
 </html>
