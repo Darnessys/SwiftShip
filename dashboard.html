@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CashUp | Dashboard</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #6c5ce7;
+            --accent: #00b894;
+            --dark: #2d3436;
+            --glass: rgba(255, 255, 255, 0.85);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0; padding: 0;
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            min-height: 100vh;
+            display: flex; flex-direction: column; color: var(--dark);
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        header {
+            padding: 30px 10px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .header-card {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 30px;
+            padding: 20px 40px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            animation: float 4s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .header-card h1 {
+            font-size: 2.2rem; margin: 0; font-weight: 900;
+            color: white; text-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            display: flex; align-items: center; gap: 15px; justify-content: center;
+        }
+
+        .header-card h1 i { font-size: 1.8rem; color: #fff; }
+
+        .header-card p {
+            color: white; font-weight: 300; margin: 5px 0 0;
+            font-size: 1rem; opacity: 0.9;
+        }
+
+        .status-pill {
+            background: rgba(255, 255, 255, 0.2);
+            color: white; padding: 4px 12px; border-radius: 20px;
+            font-size: 0.75rem; display: inline-block; margin-top: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            margin-left: 5px;
+        }
+
+        .container {
+            padding: 10px 20px 40px;
+            max-width: 800px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px; width: 90%;
+        }
+
+        .menu-card {
+            background: var(--glass);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 25px; padding: 25px 15px;
+            text-align: center; text-decoration: none; color: var(--dark);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.05);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+
+        .menu-card:hover { transform: translateY(-8px); background: white; box-shadow: 0 15px 45px rgba(0,0,0,0.1); }
+
+        .menu-card i {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            -webkit-background-clip: text; 
+            background-clip: text; 
+            -webkit-text-fill-color: transparent;
+        }
+
+        .menu-card span { font-weight: 700; font-size: 0.95rem; }
+
+        .card-cust i { background: linear-gradient(135deg, #6c5ce7, #a29bfe); -webkit-background-clip: text; background-clip: text; }
+        .card-coll i { background: linear-gradient(135deg, #00b894, #55efc4); -webkit-background-clip: text; background-clip: text; }
+
+        .btn-logout {
+            background: rgba(255, 118, 117, 0.2); color: #ff7675; border: 1px solid rgba(255, 118, 117, 0.4);
+            padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; cursor: pointer;
+            transition: 0.3s; margin: 10px auto 0; display: block;
+        }
+        .btn-logout:hover { background: #ff7675; color: white; }
+
+        .footer { margin-top: auto; text-align: center; padding: 20px; color: white; font-size: 0.8rem; opacity: 0.7; }
+
+        @media (max-width: 480px) {
+            .container { grid-template-columns: repeat(2, 1fr); gap: 15px; }
+            .header-card { padding: 15px 25px; width: 80%; }
+            .header-card h1 { font-size: 1.6rem; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="header-card">
+        <h1><i class="fas fa-paper-plane"></i>CashUp</h1>
+        <p id="company-name-display">جاري التحقق من السيرفر...</p>
+        <div id="connection-status" class="status-pill">جاري المزامنة...</div>
+        <button class="btn-logout" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i>تسجيل الخروج</button>
+    </div>
+</header>
+
+<div class="container">
+    <a href="customers.html" class="menu-card card-cust">
+        <i class="fas fa-users-cog"></i>
+        <span>تسجيل العملاء</span>
+    </a>
+    
+    <a href="collections.html" class="menu-card card-coll">
+        <i class="fas fa-wallet"></i>
+        <span>تحصيلات العملاء</span>
+    </a>
+</div>
+
+<div class="footer">
+    CashUp &copy; 2026 | السرعة والأمان في مكان واحد
+</div>
+
+<div id="toast" style="display:none; position:fixed; bottom:20px; left:20px; background:#6c5ce7; color:white; padding:15px 25px; border-radius:8px; font-weight:bold; box-shadow:0 4px 12px rgba(0,0,0,0.2); z-index:9999; direction:rtl; min-width:200px; text-align:center; font-family:'Segoe UI', sans-serif;"></div>
+
+<script>
+    
+    const firebaseConfig = {
+        apiKey: "AIzaSyAzjuBkBAKS5Y_gU7qmwwaMh1Ay9me1uds",
+        authDomain: "swiftship-c829c.firebaseapp.com",
+        projectId: "swiftship-c829c",
+        databaseURL: "https://swiftship-c829c-default-rtdb.firebaseio.com/",
+        storageBucket: "swiftship-c829c.firebasestorage.app",
+        messagingSenderId: "410866251849",
+        appId: "1:410866251849:web:4c606d59d83c2c2756a798"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const auth = firebase.auth();
+
+    let currentCompanyId = "";
+
+    function showNotification(message, isError = false) {
+        const toast = document.getElementById('toast');
+        toast.innerText = message;
+        toast.style.background = isError ? '#e74c3c' : '#6c5ce7';
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; }, 2000);
+    }
+
+    // حارس الأمن المطور - تم تحويله بالكامل للبث الحي التلقائي (.on) لمنع رخم الـ Refresh
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            currentCompanyId = user.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, "").toLowerCase();
+            
+            // تحويل إلى .on لمراقبة حالة التفعيل فوراً وبدون ريفريش
+            db.ref('companies/' + currentCompanyId + '/active_key').on('value', snap => {
+                const isActive = snap.val();
+                
+                if (isActive === true || isActive === "active") {
+                    // تحويل إلى .on لجلب اسم الشركة فور استقرار الاتصال تلقائياً
+                    db.ref('companies/' + currentCompanyId + '/info').on('value', infoSnap => {
+                        const info = infoSnap.val();
+                        if(info && info.company_id) {
+                            document.getElementById('company-name-display').innerText = "سيرفر شركة: " + info.company_id.toUpperCase();
+                        } else {
+                            document.getElementById('company-name-display').innerText = "سيرفر شركة: " + currentCompanyId;
+                        }
+                    });
+                } else {
+                    showNotification("عذراً، هذا الحساب غير مفعل حالياً. يرجى مراجعة الإدارة! 🔒", true);
+                    setTimeout(() => { window.location.href = "pending.html"; }, 2000);
+                }
+            });
+        } else {
+            window.location.href = "index.html";
+        }
+    });
+
+    function handleLogout() {
+        showNotification("جاري تسجيل الخروج بأمان...");
+        setTimeout(() => {
+            auth.signOut().then(() => {
+                window.location.href = "index.html";
+            });
+        }, 1000);
+    }
+
+    db.ref(".info/connected").on("value", (snap) => {
+        const status = document.getElementById('connection-status');
+        if (snap.val() === true) {
+            status.innerHTML = '<i class="fas fa-circle" style="color: #00b894; font-size: 8px;"></i> متصل الآن';
+        } else {
+            status.innerHTML = '<i class="fas fa-circle" style="color: #ff7675; font-size: 8px;"></i> غير متصل';
+        }
+    });
+</script>
+
+</body>
+</html>
