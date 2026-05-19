@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>دفتر تحصيلات SwiftShip السحابي</title>
+    <title>دفتر تحصيلات CashUp السحابي</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
     
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -15,43 +16,45 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root { --primary: #00b894; --edit-color: #0984e3; --bg: #f0f2f5; --warning: #e67e22; --danger: #d63031; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 0; padding-bottom: 40px; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 0; padding-bottom: 40px; color: #2d3436; }
         .header { background: var(--primary); color: white; padding: 20px; text-align: center; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .container { padding: 15px; max-width: 800px; margin: 0 auto; }
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; border-top: 4px solid var(--primary); }
-        input, select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; border-top: 4px solid var(--primary); color: #2d3436; }
+        label { font-weight: bold; margin-bottom: 5px; display: block; color: #2d3436; }
+        input, select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; background: #fff; color: #2d3436; }
         
-        #mainBtn { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 17px; transition: 0.3s; }
-        .reset-btn { width: 100%; padding: 10px; background: var(--warning); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; font-size: 14px; }
+        #mainBtn { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 17px; transition: 0.3s; margin-top: 10px; }
+        #mainBtn:hover { opacity: 0.9; }
+        .reset-btn { width: 100%; padding: 10px; background: var(--warning); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 15px; font-size: 14px; }
         
-        table { width: 100%; background: white; border-collapse: collapse; border-radius: 10px; overflow: hidden; margin-top: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        th, td { padding: 12px; text-align: right; border-bottom: 1px solid #eee; font-size: 14px; }
-        th { background: #f8f9fa; color: #636e72; }
+        table { width: 100%; background: white; border-collapse: collapse; border-radius: 10px; overflow: hidden; margin-top: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        th, td { padding: 12px; text-align: right; border-bottom: 1px solid #eee; font-size: 14px; color: #2d3436; }
+        th { background: #f8f9fa; color: #636e72; font-weight: bold; }
         
-        .total-info { display: flex; justify-content: space-between; font-weight: bold; background: #fff; padding: 15px; border-radius: 10px; margin-top: 10px; border-right: 5px solid var(--primary); font-size: 1.1rem; }
+        .total-info { display: flex; justify-content: space-between; font-weight: bold; background: #fff; padding: 15px; border-radius: 10px; margin-top: 10px; border-right: 5px solid var(--primary); font-size: 1.1rem; border-top: 1px solid #eee; border-left: 1px solid #eee; border-bottom: 1px solid #eee; }
         
         .pending-list { list-style: none; padding: 0; margin-top: 10px; max-height: 200px; overflow-y: auto; }
-        .pending-item { background: #fff5f5; border-right: 4px solid var(--danger); padding: 10px; margin-bottom: 5px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; }
+        .pending-item { background: #fff5f5; color: #c0392b; border-right: 4px solid var(--danger); padding: 10px; margin-bottom: 5px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #ffe3e3; border-left: 1px solid #ffe3e3; border-bottom: 1px solid #ffe3e3; }
         .pending-count { background: var(--danger); color: white; padding: 2px 10px; border-radius: 20px; font-size: 14px; }
 
         .actions i { font-size: 1.1rem; cursor: pointer; transition: 0.2s; }
         .btn-edit { color: var(--edit-color); margin-left: 15px; }
         .btn-delete { color: #e74c3c; }
         
-        /* ضبط تنسيق Select2 المصمت لمنع الشفافية تماماً والانسدال للي فوق أو تحت بأمان */
         .select2-container--default .select2-selection--single {
             height: 46px; border: 1px solid #ddd; border-radius: 8px; display: flex; align-items: center; margin: 10px 0; background: #fff !important;
         }
-        .select2-container--default .select2-selection--single .select2-selection__arrow {
-            height: 44px; left: 10px; right: auto;
-        }
+        .select2-container--default .select2-selection--single .select2-selection__rendered { color: #2d3436 !important; }
+        .select2-container--default .select2-selection--single .select2-selection__arrow { height: 44px; left: 10px; right: auto; }
         .select2-container { width: 100% !important; }
-        .select2-dropdown { background-color: #ffffff !important; border: 2px solid var(--primary); border-radius: 8px; z-index: 9999; box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
-        .select2-search__field { font-size: 16px !important; padding: 8px !important; }
-        .select2-results__option { background-color: #ffffff !important; color: #333 !important; }
+        .select2-dropdown { background-color: #fff !important; border: 2px solid var(--primary); border-radius: 8px; z-index: 9999; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .select2-search__field { font-size: 16px !important; padding: 8px !important; background: #fff !important; color: #2d3436 !important; border: 1px solid #ddd !important; }
+        .select2-results__option { background-color: #fff !important; color: #2d3436 !important; }
         .select2-container--default .select2-results__option--highlighted[aria-selected] { background-color: var(--primary) !important; color: white !important; }
 
-        /* تحسين للموبايل */
+        .btn-back { background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4); padding: 5px 12px; border-radius: 20px; text-decoration: none; font-size: 0.85rem; float: right; margin-top: 5px; transition: 0.3s; }
+        .btn-back:hover { background: white; color: var(--primary); }
+
         @media (max-width: 600px) {
             th, td { padding: 8px; font-size: 13px; }
         }
@@ -60,7 +63,8 @@
 <body>
 
 <div class="header">
-    <h2><i class="fas fa-hand-holding-usd"></i> تحصيلات SwiftShip</h2>
+    <a href="dashboard.html" class="btn-back"><i class="fas fa-arrow-right"></i> لوحة التحكم</a>
+    <h2><i class="fas fa-hand-holding-usd"></i> تحصيلات CashUp <span id="companyBadge" style="font-size: 12px; background: rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 10px; vertical-align: middle;">جاري الفحص...</span></h2>
 </div>
 
 <div class="container">
@@ -72,22 +76,22 @@
         
         <input type="number" id="collectAmount" placeholder="المبلغ المحصل (ج.م)">
         <input type="date" id="collectDate">
-        <button id="mainBtn" onclick="saveCollection()">حفظ في السحابة</button>
+        <button id="mainBtn" onclick="saveCollection()">حفظ في السحابة المؤمنة ☁️</button>
     </div>
 
     <div class="card" style="padding: 15px;">
-        <label><i class="fas fa-filter"></i> مراجعة سريعة:</label>
+        <label><i class="fas fa-filter"></i> مراجعة سريعة وفرز مالي:</label>
         <select id="filterCustomer" onchange="renderAll()">
             <option value="">-- اختر عميل معين للمراجعة أو استعرض الكل --</option>
         </select>
         
         <div class="total-info">
-            <span>إجمالي المحصل:</span>
+            <span>إجمالي المحصل للعميل الحالي:</span>
             <span id="totalCollected">0 ج.م</span>
         </div>
         
         <button class="reset-btn" onclick="resetTrip()">
-            <i class="fas fa-sync-alt"></i> إنهاء الدورة وتصفير الدفتر
+            <i class="fas fa-sync-alt"></i> إنهاء الدورة وتصفير الدفتر الحالي
         </button>
     </div>
 
@@ -111,6 +115,8 @@
     </table>
 </div>
 
+<div id="toast" style="display:none; position:fixed; bottom:20px; left:20px; background:#00b894; color:white; padding:15px 25px; border-radius:8px; font-weight:bold; box-shadow:0 4px 12px rgba(0,0,0,0.2); z-index:9999; direction:rtl; min-width:200px; text-align:center; font-family:'Segoe UI', sans-serif;"></div>
+
 <script>
     const firebaseConfig = {
         apiKey: "AIzaSyAzjuBkBAKS5Y_gU7qmwwaMh1Ay9me1uds",
@@ -124,18 +130,28 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    const auth = firebase.auth();
 
+    let currentCompanyId = "";
     let allCustomers = [];
     let allCollections = [];
     let editModeId = null;
 
-    // تشغيل الـ Select2 بشكل احترافي مع ميزة اختيار اتجاه فتح القائمة تلقائياً (تفتح فوق لو مفيش مساحة تحت)
+    function showNotification(message, isError = false) {
+        const toast = document.getElementById('toast');
+        if (!toast) return; // حماية إضافية تمنع انهيار الكود
+        toast.innerText = message;
+        toast.style.background = isError ? '#e74c3c' : '#00b894';
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; }, 2000);
+    }
+
     $(document).ready(function() {
         $('#collectCustomer').select2({
             dir: "rtl",
             placeholder: "-- ابحث عن اسم العميل (✅ حصل / ❌ لسه) --",
             allowClear: true,
-            dropdownParent: $('.container') // لضمان ثبات التنسيق داخل كارت الموبايل
+            dropdownParent: $('.container')
         });
 
         $('#filterCustomer').select2({
@@ -145,18 +161,41 @@
         });
     });
 
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            currentCompanyId = user.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, "").toLowerCase();
+            
+            // إضافة حارس البوابة السحابي المتزامن فوريًا مع حساب التفعيل
+            db.ref('companies/' + currentCompanyId + '/active_key').on('value', snap => {
+                const isActive = snap.val();
+                
+                if (isActive === true || isActive === "active") {
+                    document.getElementById('companyBadge').innerText = "سيرفر: " + currentCompanyId.toUpperCase();
+                    init(); // تفعيل البث الحي للبيانات
+                } else {
+                    showNotification("عذراً، الحساب غير مفعل حالياً ومحجوب عن الصلاحيات السحابية! 🔒", true);
+                    setTimeout(() => { window.location.href = "pending.html"; }, 2000);
+                }
+            });
+        } else {
+            window.location.href = "index.html"; 
+        }
+    });
+
     function init() {
         document.getElementById('collectDate').valueAsDate = new Date();
 
-        // سحب العملاء مرة واحدة وتحديث القوائم منعاً للـ الـ Loop والبطء
-        db.ref('customers').on('value', (snapshot) => {
+        db.ref('companies/' + currentCompanyId + '/customers').on('value', (snapshot) => {
             allCustomers = [];
-            snapshot.forEach(child => { allCustomers.push(child.val()); });
+            snapshot.forEach(child => { 
+                const data = child.val();
+                if(data && data.name) allCustomers.push(data); 
+            });
             updateCustomerSelects(); 
             renderAll();
         });
 
-        db.ref('collections').on('value', (snapshot) => {
+        db.ref('companies/' + currentCompanyId + '/collections').on('value', (snapshot) => {
             allCollections = [];
             snapshot.forEach(child => {
                 allCollections.push({ id: child.key, ...child.val() });
@@ -166,7 +205,6 @@
         });
     }
 
-    // الدالة الذكية المسؤولة عن دمج الـ ✅ والـ ❌ وتحديث الكومبو بوكس بدون تهنيج الصفحة
     function updateCustomerSelects() {
         const collectSelect = $('#collectCustomer');
         const filterSelect = $('#filterCustomer');
@@ -183,7 +221,6 @@
             const statusIcon = collectedNames.includes(c.name) ? " ✅" : " ❌";
             const finalName = c.name + statusIcon;
             
-            // القيمة البرمجية المرسلة للـ Firebase هي الاسم الصافي (c.name)، والعرض للمستخدم بالـ إيموجي
             collectSelect.append(new Option(finalName, c.name));
             filterSelect.append(new Option(finalName, c.name));
         });
@@ -199,34 +236,45 @@
         const collectedNames = allCollections.map(c => c.customer);
         const filterText = $('#filterCustomer').val() || "";
 
-        // تحديث قائمة المتبقيين
         const pendingContainer = document.getElementById('pendingContainer');
         const pendingCount = document.getElementById('pendingCount');
         const pendingList = allCustomers.filter(c => !collectedNames.includes(c.name));
         
         pendingCount.innerText = pendingList.length;
-        pendingContainer.innerHTML = pendingList.length === 0 ? "<p style='color:green; font-weight:bold;'>✅ تم تحصيل الكل!</p>" : "";
+        pendingContainer.innerHTML = pendingList.length === 0 ? "<p style='color:#00b894; font-weight:bold; margin:0;'>✅ مبروك! تم تحصيل مبالغ كل العملاء الحاليين بامتياز.</p>" : "";
+        
         pendingList.forEach(c => {
-            pendingContainer.innerHTML += `<div class="pending-item"><span>${c.name}</span><small>(لم يدفع)</small></div>`;
+            pendingContainer.innerHTML += `<div class="pending-item"><span><i class="fas fa-user-times"></i> ${c.name}</span><small style='background:#d63031; color: white; padding:2px 6px; border-radius:4px;'>لم يقم بالسداد بعد</small></div>`;
         });
 
-        // تحديث جدول العمليات والإجمالي
         const tbody = document.getElementById('collectionsTable');
         let total = 0;
         tbody.innerHTML = "";
 
         const displayData = filterText === "" ? allCollections : allCollections.filter(c => c.customer === filterText);
 
-        [...displayData].reverse().forEach(c => {
-            total += parseFloat(c.amount);
+        if(displayData.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#aaa;">لا توجد أي تحصيلات مسجلة تفي ببيانات البحث حالياً.</td></tr>`;
+        }
+
+        const PalestineData = [...displayData].reverse();
+        PalestineData.forEach(c => {
+            const amt = parseFloat(c.amount) || 0;
+            total += amt;
+            
+            let cleanDate = c.date;
+            if(c.date && c.date.includes('-')) {
+                cleanDate = c.date.split('-').slice(1).join('/');
+            }
+
             tbody.innerHTML += `
                 <tr>
-                    <td>${c.date.split('-').slice(1).join('/')}</td>
+                    <td>${cleanDate}</td>
                     <td>${c.customer}</td>
-                    <td style="font-weight:bold;">${c.amount}</td>
+                    <td style="font-weight:bold; color:#00b894;">${amt} ج.م</td>
                     <td class="actions">
-                        <i class="fas fa-edit btn-edit" onclick="startEdit('${c.id}')"></i>
-                        <i class="fas fa-trash btn-delete" onclick="deleteCollection('${c.id}')"></i>
+                        <i class="fas fa-edit btn-edit" onclick="startEdit('${c.id}')" title="تعديل"></i>
+                        <i class="fas fa-trash btn-delete" onclick="deleteCollection('${c.id}')" title="حذف"></i>
                     </td>
                 </tr>
             `;
@@ -239,22 +287,28 @@
         const amount = document.getElementById('collectAmount').value;
         const date = document.getElementById('collectDate').value;
 
-        if(!customer || !amount || amount <= 0) return alert("البيانات غير مكتملة");
+        if(!customer || !amount || parseFloat(amount) <= 0 || !date) {
+            return showNotification("تنبيه: برجاء اختيار اسم العميل وإدخال مبلغ تحصيل صحيح أكبر من الصفر مع تحديد التاريخ.", true);
+        }
+
+        const payload = {
+            customer: customer,
+            amount: parseFloat(amount),
+            date: date
+        };
 
         if (editModeId) {
-            db.ref('collections/' + editModeId).update({
-                customer, amount: parseFloat(amount), date
-            }).then(() => {
+            db.ref('companies/' + currentCompanyId + '/collections/' + editModeId).update(payload).then(() => {
                 editModeId = null;
-                document.getElementById('mainBtn').innerText = "حفظ في السحابة";
+                document.getElementById('mainBtn').innerHTML = "حفظ في السحابة المؤمنة ☁️";
                 document.getElementById('mainBtn').style.background = "var(--primary)";
                 $('#collectCustomer').val('').trigger('change');
+                showNotification("تم تحديث سجل التحصيل المالي بنجاح! ✓");
             });
         } else {
-            db.ref('collections').push({
-                customer, amount: parseFloat(amount), date
-            }).then(() => {
+            db.ref('companies/' + currentCompanyId + '/collections').push(payload).then(() => {
                 $('#collectCustomer').val('').trigger('change');
+                showNotification("تم حفظ مبلغ التحصيل بنجاح! 🎉");
             });
         }
 
@@ -268,25 +322,31 @@
             $('#collectCustomer').val(item.customer).trigger('change');
             document.getElementById('collectAmount').value = item.amount;
             document.getElementById('collectDate').value = item.date;
-            document.getElementById('mainBtn').innerText = "تحديث البيانات";
+            document.getElementById('mainBtn').innerHTML = "<i class='fas fa-save'></i> تحديث بيانات السجل الحالي";
             document.getElementById('mainBtn').style.background = "var(--edit-color)";
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     }
 
     function deleteCollection(id) {
-        if(confirm("حذف هذا السجل نهائياً من السحاب؟")) {
-            db.ref('collections/' + id).remove();
-        }
+        if(!confirm("هل أنت متأكد من حذف هذا السجل المالي نهائياً؟")) return;
+        showNotification("جاري حذف السجل المالي...");
+        setTimeout(() => {
+            db.ref('companies/' + currentCompanyId + '/collections/' + id).remove().then(() => {
+                showNotification("تم الحذف بنجاح!");
+            });
+        }, 500);
     }
 
     function resetTrip() {
-        if(confirm("تنبيه: سيتم مسح كافة تحصيلات هذه الرحلة لتصفير الدفتر. هل أنت متأكد؟")) {
-            db.ref('collections').remove();
-        }
+        if(!confirm("⚠️ تحذير: هل أنت متأكد من تصفير وإغلاق الدفتر المالي بالكامل لبدء دورة جديدة؟ لا يمكن التراجع عن هذه الخطوة!")) return;
+        showNotification("جاري تصفير الدفتر وبدء دورة رحلات جديدة...");
+        setTimeout(() => {
+            db.ref('companies/' + currentCompanyId + '/collections').remove().then(() => {
+                showNotification("تم تصفير الدفتر بنجاح! ✓");
+            });
+        }, 800);
     }
-
-    init();
 </script>
 </body>
 </html>
